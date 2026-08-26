@@ -1,0 +1,1190 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Deep Speech 2의 빔 서치 디코딩 인터랙티브 교육 자료 — CTC 축약 규칙, greedy가 틀리는 이유, prefix beam search를 프레임 단위로 직접 실행, Q(y)=log p_ctc+α log p_lm+β·단어수 재순위, 배포용 가지치기 150배까지 브라우저에서 실험">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%94%A6%3C/text%3E%3C/svg%3E">
+<meta charset="utf-8">
+<title>빔 서치는 무엇을 찾고 있는가 — Deep Speech 2 디코딩 인터랙티브 노트</title>
+
+<style>
+/* ---------- tokens ---------- */
+:root {
+  color-scheme: light;
+  --bg: #f6f7f5; --surface: #fdfdfc; --surface2: #eff1ee;
+  --ink: #171a18; --ink2: #565b57; --muted: #898781;
+  --line: #e1e0d9; --hairline: rgba(11,11,11,0.10);
+  --accent: #157a63; --accent-soft: #ddeee7; --accent-ink: #0d5c4a;
+  --code-bg: #eef1ee;
+  --s1: #2a78d6;   /* CTC / 음향 모델 */
+  --s2: #eb6834;   /* 언어 모델 */
+  --s3: #8a5fd0;   /* 빔 / 탐색 */
+  --good: #0ca30c; --crit: #d03b3b; --grid: #e1e0d9;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --bg: #0f1211; --surface: #181c1a; --surface2: #202522;
+    --ink: #edf0ed; --ink2: #aab3ac; --muted: #898781;
+    --line: #262b28; --hairline: rgba(255,255,255,0.10);
+    --accent: #43c3a0; --accent-soft: #14352c; --accent-ink: #6fd7ba;
+    --code-bg: #141816; --s1: #5b9cf0; --s2: #e9743f; --s3: #a583e2; --grid: #2c2c2a;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0f1211; --surface: #181c1a; --surface2: #202522;
+  --ink: #edf0ed; --ink2: #aab3ac; --muted: #898781;
+  --line: #262b28; --hairline: rgba(255,255,255,0.10);
+  --accent: #43c3a0; --accent-soft: #14352c; --accent-ink: #6fd7ba;
+  --code-bg: #141816; --s1: #5b9cf0; --s2: #e9743f; --s3: #a583e2; --grid: #2c2c2a;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f6f7f5; --surface: #fdfdfc; --surface2: #eff1ee;
+  --ink: #171a18; --ink2: #565b57; --muted: #898781;
+  --line: #e1e0d9; --hairline: rgba(11,11,11,0.10);
+  --accent: #157a63; --accent-soft: #ddeee7; --accent-ink: #0d5c4a;
+  --code-bg: #eef1ee; --s1: #2a78d6; --s2: #eb6834; --s3: #8a5fd0; --grid: #e1e0d9;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", Pretendard, "Segoe UI", "Noto Sans KR", "Malgun Gothic", sans-serif;
+  line-height: 1.72; margin: 0; -webkit-font-smoothing: antialiased;
+}
+main { max-width: 880px; margin: 0 auto; padding: 28px 20px 90px; }
+h1 { font-size: 1.72rem; line-height: 1.35; letter-spacing: -0.015em; margin: 8px 0 10px; }
+h2 { font-size: 1.28rem; letter-spacing: -0.01em; margin: 60px 0 12px; padding-top: 18px; border-top: 1px solid var(--line); }
+h3 { font-size: 1.04rem; margin: 26px 0 8px; }
+p { margin: 12px 0; }
+a { color: var(--accent-ink); }
+code {
+  background: var(--code-bg); border-radius: 5px; padding: 1px 6px;
+  font-family: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.87em;
+}
+pre {
+  background: var(--code-bg); border: 1px solid var(--line); border-radius: 10px;
+  padding: 14px 16px; overflow-x: auto; line-height: 1.55; font-size: .88rem;
+}
+pre code { background: none; padding: 0; }
+blockquote { margin: 18px 0; padding: 2px 0 2px 16px; border-left: 3px solid var(--line); color: var(--ink2); font-size: .94rem; }
+strong { font-weight: 700; }
+.lede { color: var(--ink2); font-size: 1.02rem; }
+.kicker {
+  display: inline-block; font-size: .78rem; font-weight: 700; letter-spacing: .08em;
+  color: var(--accent-ink); background: var(--accent-soft);
+  border-radius: 999px; padding: 3px 12px; margin-bottom: 6px;
+}
+.meta { color: var(--muted); font-size: .88rem; }
+.note { background: var(--accent-soft); border-left: 3px solid var(--accent); border-radius: 0 10px 10px 0; padding: 12px 16px; margin: 18px 0; font-size: .95rem; }
+.warn { background: color-mix(in srgb, var(--crit) 8%, var(--surface)); border-left: 3px solid var(--crit); border-radius: 0 10px 10px 0; padding: 12px 16px; margin: 18px 0; font-size: .95rem; }
+.demo { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 20px; margin: 20px 0; }
+.demo .demo-title { font-weight: 700; font-size: .95rem; margin-bottom: 4px; }
+.demo .demo-sub { color: var(--ink2); font-size: .87rem; margin-bottom: 14px; }
+.controls { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; margin: 10px 0 14px; }
+.controls label { font-size: .88rem; color: var(--ink2); }
+button {
+  background: var(--surface2); color: var(--ink); border: 1px solid var(--line);
+  border-radius: 9px; padding: 7px 14px; font-size: .9rem; font-family: inherit; cursor: pointer;
+}
+button:hover { border-color: var(--accent); }
+button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+button:disabled { cursor: default; opacity: .45; }
+input[type=range] { accent-color: var(--accent); vertical-align: middle; }
+input[type=number] {
+  background: var(--code-bg); color: var(--ink); border: 1px solid var(--line);
+  border-radius: 7px; padding: 5px 8px; width: 92px; font-family: ui-monospace, Menlo, monospace; font-size: .88rem;
+}
+.readout {
+  display: inline-block; min-width: 2.4em; text-align: center;
+  font-family: ui-monospace, Menlo, monospace; font-size: .9rem;
+  background: var(--code-bg); border-radius: 6px; padding: 1px 8px;
+}
+.stats { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+.stat { background: var(--surface2); border: 1px solid var(--line); border-radius: 10px; padding: 8px 14px; font-size: .85rem; color: var(--ink2); }
+.stat b { display: block; font-size: 1.12rem; color: var(--ink); font-family: ui-monospace, Menlo, monospace; }
+.stat.hl { border-color: var(--accent); background: var(--accent-soft); }
+.stat.hl b { color: var(--accent-ink); }
+.stat.bad { border-color: var(--crit); background: color-mix(in srgb, var(--crit) 9%, var(--surface)); }
+.stat.bad b { color: var(--crit); }
+canvas { max-width: 100%; display: block; }
+.scrollx { overflow-x: auto; }
+table.tbl { border-collapse: collapse; width: 100%; font-size: .88rem; margin: 14px 0; }
+table.tbl th, table.tbl td { border: 1px solid var(--line); padding: 6px 10px; text-align: center; }
+table.tbl th { background: var(--surface2); font-weight: 600; }
+table.tbl td.rowhead { text-align: left; font-weight: 600; background: var(--surface2); }
+table.tbl td.hl { background: var(--accent-soft); color: var(--accent-ink); font-weight: 700; }
+table.tbl td.bad { background: color-mix(in srgb, var(--crit) 10%, var(--surface)); color: var(--crit); font-weight: 700; }
+table.tbl td.mono, table.tbl th.mono { font-family: ui-monospace, Menlo, monospace; }
+table.tbl tr.newbeam td { background: color-mix(in srgb, var(--s3) 12%, var(--surface)); }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: .82rem; color: var(--ink2); margin-top: 8px; }
+.legend .sw { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+
+/* alignment editor */
+.aligner { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.slot {
+  width: 56px; height: 56px; display: grid; place-items: center;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--surface2);
+  font-family: ui-monospace, Menlo, monospace; font-size: 1.3rem; cursor: pointer; user-select: none;
+  transition: background .12s, border-color .12s;
+}
+.slot:hover { border-color: var(--accent); }
+.slot.blank { color: var(--muted); }
+.slot.dup { border-color: var(--s3); background: color-mix(in srgb, var(--s3) 14%, var(--surface)); }
+.slotwrap { text-align: center; }
+.slotwrap .t { font-size: .72rem; color: var(--muted); font-family: ui-monospace, Menlo, monospace; }
+.collapse-step { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 8px 0; font-size: .9rem; }
+.collapse-step .lab { min-width: 168px; color: var(--ink2); font-size: .84rem; }
+.chip {
+  font-family: ui-monospace, Menlo, monospace; background: var(--code-bg);
+  border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; font-size: .9rem;
+}
+.chip.final { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-ink); font-weight: 700; }
+
+/* prob grid */
+.pgrid { display: grid; gap: 3px; font-family: ui-monospace, Menlo, monospace; font-size: .78rem; }
+.pcell {
+  width: 62px; text-align: center; padding: 5px 2px; border-radius: 6px;
+  border: 1px solid var(--line); background: var(--surface2);
+}
+.pcell.head { background: transparent; border-color: transparent; color: var(--muted); }
+.pcell.argmax { border-color: var(--s1); background: color-mix(in srgb, var(--s1) 22%, var(--surface)); font-weight: 700; }
+.pcell.rowlab { width: 46px; background: transparent; border-color: transparent; color: var(--ink2); text-align: right; }
+
+/* bars */
+.bars { display: grid; gap: 8px; margin: 14px 0; }
+.bar-row { display: grid; grid-template-columns: 200px 1fr 116px; gap: 10px; align-items: center; font-size: .86rem; }
+.bar-track { background: var(--surface2); border-radius: 6px; height: 20px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 6px; background: var(--s1); transition: width .3s ease; }
+.bar-fill.f2 { background: var(--s2); }
+.bar-fill.f3 { background: var(--s3); }
+.bar-fill.acc { background: var(--accent); }
+.bar-fill.bad { background: var(--crit); }
+.bar-val { font-family: ui-monospace, Menlo, monospace; text-align: right; font-size: .82rem; }
+@media (max-width: 620px) { .bar-row { grid-template-columns: 122px 1fr 92px; } .collapse-step .lab { min-width: 100%; } }
+
+/* quiz */
+.quiz { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 20px; margin: 18px 0; }
+.quiz .q { font-weight: 600; margin-bottom: 12px; }
+.quiz .opts { display: grid; gap: 8px; }
+.quiz .opts button { text-align: left; padding: 10px 14px; border-radius: 9px; font-size: .92rem; }
+.quiz .opts button.correct { border-color: var(--good); background: color-mix(in srgb, var(--good) 12%, var(--surface)); }
+.quiz .opts button.wrong { border-color: var(--crit); background: color-mix(in srgb, var(--crit) 10%, var(--surface)); }
+.quiz .expl { display: none; margin-top: 12px; font-size: .9rem; color: var(--ink2); border-top: 1px dashed var(--line); padding-top: 10px; }
+.quiz .expl.show { display: block; }
+.theme-toggle { position: fixed; top: 14px; right: 14px; z-index: 10; border-radius: 999px; padding: 6px 12px; font-size: .85rem; }
+.toc { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px 22px; margin: 22px 0; font-size: .92rem; }
+.toc ol { margin: 6px 0 2px; padding-left: 20px; }
+.toc li { margin: 3px 0; }
+footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: .85rem; }
+</style>
+</head>
+<body>
+<button class="theme-toggle" id="themeToggle" aria-label="테마 전환">🌗 테마</button>
+<main>
+
+<span class="kicker">HOW AI WORKS</span>
+<h1>빔 서치는<br>무엇을 찾고 있는가</h1>
+<p class="lede">
+Deep Speech 2의 신경망은 문장을 출력하지 않습니다. <strong>프레임마다 "이 40ms는 어떤 글자일까"라는 확률표</strong>를 뱉을 뿐입니다.
+그 확률표 더미에서 문장 하나를 뽑아내는 게 <strong>디코딩</strong>이고, DS2가 쓰는 방법이 <strong>빔 서치</strong>입니다.
+그런데 각 프레임의 1등을 이어 붙이면 <strong>틀립니다.</strong> 왜 틀리는지, 빔 서치가 대신 무엇을 세고 있는지,
+그리고 논문의 <code>Q(y) = log p_ctc(y|x) + α log p_lm(y) + β·단어수</code>가 무슨 뜻인지 직접 돌려 봅니다.
+</p>
+<p class="meta">
+원 논문: <a href="https://arxiv.org/abs/1512.02595" target="_blank" rel="noopener">Deep Speech 2: End-to-End Speech Recognition in English and Mandarin</a>
+(Amodei et al., Baidu Research, arXiv:1512.02595 · ICML 2016) — 언어 모델·디코딩은 3.8절, 배포 최적화는 7.3절 ·
+디코딩 알고리즘 원전: <a href="https://arxiv.org/abs/1408.2873" target="_blank" rel="noopener">Hannun et al., 2014</a>
+</p>
+
+<div class="toc">
+<strong>차례</strong>
+<ol>
+<li><a href="#s1">신경망이 실제로 내놓는 것 — 문장이 아니라 확률표</a></li>
+<li><a href="#s2">CTC 축약 규칙 — 여러 정렬이 한 문장이 된다</a></li>
+<li><a href="#s3">greedy는 왜 틀리는가 — 최선의 "정렬" ≠ 최선의 "문장"</a></li>
+<li><a href="#s4">prefix beam search — 알고리즘을 한 프레임씩 실행하기</a></li>
+<li><a href="#s5">빔 크기 — 얼마나 넓게 볼 것인가 (500 / 200)</a></li>
+<li><a href="#s6">언어 모델 붙이기 — Q(y)의 세 항</a></li>
+<li><a href="#s7">배포 — 40ms마다 100만 번 조회를 어떻게 줄였나</a></li>
+<li><a href="#s8">논문의 결과 — 언어 모델은 얼마나 도왔나</a></li>
+<li><a href="#s9">정리 — 한 문장으로</a></li>
+<li><a href="#s10">이해도 퀴즈</a></li>
+</ol>
+</div>
+
+<!-- ================================================================ -->
+<h2 id="s1">§1 신경망이 실제로 내놓는 것 — 문장이 아니라 확률표</h2>
+
+<p>
+DS2의 출력층을 논문은 이렇게 설명합니다.
+</p>
+
+<blockquote>
+"At each output time-step t, the RNN makes a prediction over characters, p(ℓ<sub>t</sub>|x),
+where ℓ<sub>t</sub> is either a character in the alphabet or the <strong>blank</strong> symbol.
+In English we have ℓ<sub>t</sub> ∈ {a, b, c, …, z, space, apostrophe, blank}."
+</blockquote>
+
+<p>
+즉 출력은 <strong>T개 프레임 × 알파벳 크기</strong>짜리 확률 행렬입니다. 5초 발화면 T는 백 단위, 알파벳은
+영어 29개(중국어는 6천 개 규모). 여기서 문장 하나를 골라내야 합니다.
+</p>
+
+<p>
+여기 <code>blank</code>(빈칸, <code>_</code>로 표기)라는 낯선 기호가 하나 끼어 있습니다.
+이건 "이 프레임에는 출력할 글자가 없다"는 뜻입니다. 왜 필요할까요?
+<strong>글자 하나가 여러 프레임에 걸쳐 발음되기 때문</strong>입니다.
+"cat"의 /a/가 4프레임 동안 이어지면 신경망은 <code>a a a a</code>를 내놓을 텐데,
+이걸 그대로 읽으면 "aaaa"가 되죠. 그래서 CTC는 축약 규칙을 씁니다.
+</p>
+
+<!-- ================================================================ -->
+<h2 id="s2">§2 CTC 축약 규칙 — 여러 정렬이 한 문장이 된다</h2>
+
+<p>
+프레임마다 기호를 하나씩 고른 것을 <strong>정렬(alignment)</strong>이라고 합니다.
+정렬을 문장으로 바꾸는 규칙은 딱 두 단계, 그리고 <strong>순서가 중요</strong>합니다.
+</p>
+
+<pre><code>① 연속으로 같은 기호가 나오면 하나로 병합   c c _ _ a t t  →  c _ a t
+② 남은 blank(_)를 전부 제거                  c _ a t        →  c a t</code></pre>
+
+<p>
+①을 먼저 하는 덕분에 <strong>blank가 "글자 경계 표시" 역할</strong>을 합니다.
+진짜로 같은 글자가 두 번 나와야 하는 "letter"의 <code>tt</code>는 <code>t _ t</code>처럼
+사이에 blank를 끼워 표현합니다. blank가 없으면 "tt"와 "t"를 구별할 방법이 없습니다.
+</p>
+
+<div class="demo">
+<div class="demo-title">데모 1 · 정렬을 직접 만들어 보기</div>
+<div class="demo-sub">칸을 클릭하면 기호가 <code>_ → c → a → t</code> 순으로 바뀝니다. 축약 결과가 어떻게 되는지 보세요.</div>
+<div class="aligner" id="d1slots"></div>
+<div class="collapse-step"><span class="lab">원본 정렬</span><span class="chip" id="d1raw">–</span></div>
+<div class="collapse-step"><span class="lab">① 연속 중복 병합 후</span><span class="chip" id="d1merged">–</span></div>
+<div class="collapse-step"><span class="lab">② blank 제거 후 (최종)</span><span class="chip final" id="d1final">–</span></div>
+<div class="controls" style="margin-top:14px">
+  <button id="d1ex1">예시: c c _ _ t _</button>
+  <button id="d1ex2">예시: c c a a t _</button>
+  <button id="d1ex3">예시: t _ t a c c</button>
+</div>
+<div class="stats">
+  <div class="stat">이 <em>정렬</em> 하나의 확률<b id="d1ap">–</b></div>
+  <div class="stat hl">같은 문장을 만드는 정렬 개수<b id="d1cnt">–</b></div>
+  <div class="stat hl">그 정렬들의 확률 <em>합</em><b id="d1sum">–</b></div>
+</div>
+</div>
+
+<div class="note">
+<strong>여기가 이 문서 전체의 핵심입니다.</strong> 문장 <code>y</code>의 확률은 <em>어느 한 정렬</em>의 확률이 아니라,
+<strong><code>y</code>로 축약되는 모든 정렬의 확률을 더한 값</strong>입니다.
+<pre style="margin:10px 0 0"><code>p(y | x)  =   Σ         p(정렬 | x)
+            정렬 ∈ 축약⁻¹(y)</code></pre>
+디코딩이 찾아야 하는 건 이 <strong>합</strong>이 가장 큰 <code>y</code>입니다.
+</div>
+
+<!-- ================================================================ -->
+<h2 id="s3">§3 greedy는 왜 틀리는가 — 최선의 "정렬" ≠ 최선의 "문장"</h2>
+
+<p>
+가장 단순한 디코딩은 프레임마다 1등 글자를 고르고 축약하는 것입니다(<strong>greedy</strong> 또는 <strong>best path</strong> 디코딩).
+빠르고, 대부분은 잘 됩니다. 그런데 이건 <strong>가장 확률 높은 정렬 하나</strong>를 찾을 뿐이지
+<strong>가장 확률 높은 문장</strong>을 찾는 게 아닙니다. 둘은 다릅니다.
+</p>
+
+<p>
+아래는 그 차이가 드러나도록 만든 6프레임짜리 장난감 확률표입니다.
+파란 칸이 각 프레임의 1등입니다.
+</p>
+
+<div class="demo">
+<div class="demo-title">데모 2 · greedy vs 실제 최선 문장</div>
+<div class="demo-sub">4⁶ = 4,096개 정렬을 전부 열거해서 문장별 확률 합을 구합니다 (실전에서는 불가능하지만 장난감에서는 가능합니다).</div>
+<div class="scrollx"><div class="pgrid" id="d2grid"></div></div>
+<div class="legend">
+  <span><span class="sw" style="background:var(--s1)"></span>그 프레임의 최고 확률 기호 (greedy가 고르는 것)</span>
+</div>
+<div class="stats">
+  <div class="stat bad">greedy 정렬<b id="d2gali">–</b></div>
+  <div class="stat bad">greedy 출력<b id="d2gout">–</b></div>
+  <div class="stat hl">확률이 가장 높은 문장<b id="d2best">–</b></div>
+</div>
+<h3 style="margin-top:22px">문장별 확률 (전수 열거, 상위 8개)</h3>
+<div class="bars" id="d2bars"></div>
+</div>
+
+<p>
+결과를 보면 greedy는 <code>"ct"</code>를 내놓지만, 실제로 확률이 가장 높은 문장은 <code>"cat"</code>입니다.
+<strong>두 배 이상 차이가 납니다.</strong> 왜 이런 일이 생길까요?
+</p>
+
+<p>
+프레임 3·4를 보세요. <code>_</code>(0.45)가 <code>a</code>(0.40)보다 아주 조금 높습니다.
+그래서 greedy는 두 프레임 모두 blank를 고르고 <code>a</code>를 통째로 버립니다.
+하지만 <code>"cat"</code>은 <code>a</code>가 <strong>프레임 3에만, 4에만, 또는 둘 다</strong> 나타나는
+여러 정렬로 실현될 수 있고, 그 확률들이 <strong>합쳐지면</strong> 하나뿐인 blank 경로를 압도합니다.
+</p>
+
+<div class="warn">
+<strong>이게 빔 서치가 필요한 첫 번째 이유입니다.</strong> 확률 질량이 여러 정렬에 흩어져 있을 때
+greedy는 그걸 모으지 못합니다. 정답을 <em>알아보지 못하는</em> 게 아니라 <em>세지 못하는</em> 겁니다.
+</div>
+
+<!-- ================================================================ -->
+<h2 id="s4">§4 prefix beam search — 알고리즘을 한 프레임씩 실행하기</h2>
+
+<p>
+그럼 모든 정렬을 다 세면 되지 않을까요? 안 됩니다. T=100, 알파벳 29개면 정렬은 29¹⁰⁰개입니다.
+</p>
+
+<p>
+해법은 <strong>정렬이 아니라 문장 접두사(prefix)를 후보로 관리</strong>하는 것입니다.
+같은 접두사로 축약되는 정렬들을 하나로 묶어서 확률을 합쳐 두고, 상위 몇 개만 남기며 진행합니다.
+이게 <strong>prefix beam search</strong>입니다.
+</p>
+
+<h3>왜 확률을 두 개로 나눠 들고 다니나</h3>
+
+<p>
+구현에서 가장 헷갈리는 부분입니다. 각 접두사마다 확률을 <strong>둘</strong>로 나눠 보관합니다.
+</p>
+
+<table class="tbl">
+  <tr><th>기호</th><th>의미</th><th>왜 필요한가</th></tr>
+  <tr><td class="rowhead mono">p_b(prefix)</td><td>이 접두사로 축약되면서 <strong>blank로 끝나는</strong> 정렬들의 확률 합</td><td rowspan="2">다음 프레임에 <strong>직전과 같은 글자</strong>가 오면, blank로 끝났는지 아닌지에 따라 결과가 갈리기 때문</td></tr>
+  <tr><td class="rowhead mono">p_nb(prefix)</td><td>이 접두사로 축약되면서 <strong>글자로 끝나는</strong> 정렬들의 확률 합</td></tr>
+</table>
+
+<p>
+예를 들어 접두사가 <code>"ca"</code>이고 다음 프레임에 또 <code>a</code>가 온다면:
+</p>
+
+<ul>
+<li><code>… c a</code>(글자로 끝남) 뒤에 <code>a</code> → <code>… c a a</code> → 병합되어 여전히 <strong>"ca"</strong></li>
+<li><code>… c a _</code>(blank로 끝남) 뒤에 <code>a</code> → <code>… c a _ a</code> → blank가 경계를 만들어 <strong>"caa"</strong></li>
+</ul>
+
+<p>
+같은 접두사, 같은 다음 글자인데 결과가 다릅니다. 그래서 둘을 섞어 두면 안 됩니다.
+</p>
+
+<pre><code># prefix beam search — 핵심 갱신 규칙 (선형 확률 기준)
+for t in range(T):
+    next = defaultdict(lambda: {"pb": 0.0, "pnb": 0.0})
+    for prefix, s in beams.items():
+        last = prefix[-1] if prefix else None
+        for ch, pc in dist[t].items():
+
+            if ch == BLANK:
+                # blank: 접두사 그대로, blank로 끝남
+                next[prefix]["pb"] += pc * (s["pb"] + s["pnb"])
+
+            elif ch == last:
+                # 직전과 같은 글자 — 두 갈래로 갈린다
+                next[prefix]["pnb"]      += pc * s["pnb"]   # 병합 → 그대로
+                next[prefix + ch]["pnb"] += pc * s["pb"]    # blank 경계 → 확장
+
+            else:
+                # 새로운 글자 — 무조건 확장
+                next[prefix + ch]["pnb"] += pc * (s["pb"] + s["pnb"])
+
+    # 상위 beam_width 개만 남긴다  ← 여기가 "빔"
+    beams = top_k(next, key=lambda s: s["pb"] + s["pnb"], k=beam_width)</code></pre>
+
+<p>
+아래에서 이 알고리즘을 <strong>실제로</strong> 한 프레임씩 돌려 볼 수 있습니다. 위 확률표를 그대로 씁니다.
+</p>
+
+<div class="demo">
+<div class="demo-title">데모 3 · prefix beam search 스텝 실행기</div>
+<div class="demo-sub">"다음 프레임 ▶"을 누르며 빔 목록이 어떻게 변하는지 보세요. 빔 폭을 1로 두면 greedy와 비슷하게 망가집니다.</div>
+<div class="controls">
+  <button id="d3next">다음 프레임 ▶</button>
+  <button id="d3all">끝까지 ⏭</button>
+  <button id="d3reset">↺ 처음으로</button>
+  <label>빔 폭 <input type="range" id="d3w" min="1" max="12" value="3" step="1"> <span class="readout" id="d3wv">3</span></label>
+</div>
+<div class="stats" style="margin-bottom:14px">
+  <div class="stat hl">현재 프레임<b id="d3t">시작 전</b></div>
+  <div class="stat">살아 있는 빔<b id="d3n">1</b></div>
+  <div class="stat" id="d3topbox">현재 1위<b id="d3top">""</b></div>
+</div>
+<div class="scrollx"><table class="tbl" id="d3table"></table></div>
+<div class="legend">
+  <span><span class="sw" style="background:var(--s3)"></span>이번 프레임에 새로 생긴 접두사</span>
+  <span>연한 회색 행 = 빔 폭에 밀려 <strong>버려진</strong> 후보</span>
+</div>
+<div class="note" id="d3msg" style="margin-bottom:0"></div>
+</div>
+
+<!-- ================================================================ -->
+<h2 id="s5">§5 빔 크기 — 얼마나 넓게 볼 것인가</h2>
+
+<p>
+빔 폭은 "매 프레임 상위 몇 개를 살려 둘 것인가"입니다. 넓을수록 정확하고 느립니다.
+장난감 예제에서 폭을 바꿔 가며 최종 결과를 보면 이렇습니다.
+</p>
+
+<div class="demo">
+<div class="demo-title">데모 4 · 빔 폭에 따른 최종 결과</div>
+<div class="demo-sub">전수 열거로 구한 정답은 <code>"cat"</code> (p = 0.42486)입니다.</div>
+<div class="scrollx"><table class="tbl" id="d4table"></table></div>
+</div>
+
+<p>
+폭 1은 <code>"ct"</code>로 망하고, <strong>폭 2에서 이미 <code>"cat"</code>을 찾습니다.</strong>
+그다음부터는 확률 추정치만 조금씩 정밀해질 뿐 답이 바뀌지 않죠. 이 <strong>포화</strong> 현상이 실전에서도 그대로 나타납니다.
+논문은 6.2절에서 Mandarin에 대해 이렇게 씁니다.
+</p>
+
+<blockquote>
+"the performance of the beam search during decoding levels off at a smaller beam size.
+This allows us to use a beam size of 200 with a negligible degradation in CER."
+</blockquote>
+
+<p>
+그래서 최종 설정은 <strong>영어 500, 중국어 200</strong>입니다.
+영어가 더 큰 이유는 알파벳이 작아 한 글자에 담긴 정보가 적고(4.9 bits/char vs 12.6),
+초당 글자 수가 많아(14.1자 vs 3.3자) 애매한 갈림길이 훨씬 자주 생기기 때문입니다.
+</p>
+
+<!-- ================================================================ -->
+<h2 id="s6">§6 언어 모델 붙이기 — Q(y)의 세 항</h2>
+
+<p>
+여기까지는 <strong>음향 정보만</strong> 썼습니다. 그런데 신경망은 "recognize speech"와 "wreck a nice beach"를
+소리만으로는 구분하기 어렵습니다. 사람도 그렇죠. 구분하는 건 <strong>어느 쪽이 있을 법한 말인가</strong>라는 지식입니다.
+</p>
+
+<p>
+DS2는 외부 n-gram 언어 모델을 붙이고, 빔 서치가 최대화하는 목적함수를 이렇게 바꿉니다 (식 12).
+</p>
+
+<pre><code>Q(y) = log p_ctc(y | x)  +  α · log p_lm(y)  +  β · word_count(y)
+       └─ 음향: 소리와      └─ 언어: 말이       └─ 단어 삽입 보너스
+          맞는가?              되는가?</code></pre>
+
+<table class="tbl">
+  <tr><th>항</th><th>역할</th><th>없으면?</th></tr>
+  <tr><td class="rowhead">log p_ctc</td><td>지금까지 만든 그 확률 합</td><td>소리를 무시하고 흔한 문장만 뱉음</td></tr>
+  <tr><td class="rowhead">α · log p_lm</td><td>말이 되는 문장에 가산점. α는 언어 모델의 발언권</td><td>철자는 맞는데 뜻이 안 통하는 문장이 이김</td></tr>
+  <tr><td class="rowhead">β · word_count</td><td>단어 수에 비례한 보너스</td><td class="bad">짧은 문장이 유리해져 단어를 빠뜨림 ↓</td></tr>
+</table>
+
+<p>
+<strong>β가 왜 필요한지</strong>가 특히 헷갈리는 지점입니다.
+<code>log p_lm</code>은 단어를 하나 더할 때마다 음수 값이 더해지므로, 언어 모델은 본질적으로
+<strong>짧은 문장을 선호</strong>합니다. 이걸 그냥 두면 디코더가 단어를 슬금슬금 빠뜨립니다.
+β는 그 편향을 상쇄하는 평형추입니다 — 다만 너무 키우면 반대로 <strong>없는 단어를 만들어 냅니다.</strong>
+직접 확인해 보세요.
+</p>
+
+<div class="demo">
+<div class="demo-title">데모 5 · α와 β로 순위 뒤집기</div>
+<div class="demo-sub">같은 음향 확률에서 후보 5개의 Q(y) 순위가 어떻게 바뀌는지 봅니다. 막대는 Q(y)를 최고점 기준으로 정렬한 것입니다.</div>
+<div class="controls">
+  <label>α (언어 모델 가중치) <input type="range" id="d5a" min="0" max="30" value="10" step="1"> <span class="readout" id="d5av">1.0</span></label>
+  <label>β (단어 삽입 보너스) <input type="range" id="d5b" min="0" max="60" value="0" step="1"> <span class="readout" id="d5bv">0.0</span></label>
+  <button id="d5r0">α=0 (음향만)</button>
+  <button id="d5r1">α=1, β=0</button>
+  <button id="d5r2">β 과다 (β=4)</button>
+</div>
+<div class="bars" id="d5bars"></div>
+<div class="scrollx"><table class="tbl" id="d5table"></table></div>
+<div class="stats">
+  <div class="stat" id="d5winbox">현재 1위<b id="d5win">–</b></div>
+  <div class="stat">정답과 일치?<b id="d5ok">–</b></div>
+</div>
+</div>
+
+<div class="warn">
+<strong>이 표의 <code>log p_ctc</code>·<code>log p_lm</code> 값은 합성 예시입니다.</strong>
+논문에 나오는 수치가 아니라, 세 항이 어떻게 겨루는지 보여주려고 만든 값입니다.
+"recognize speech" / "wreck a nice beach"는 음성 인식 교재의 고전적인 예문입니다.
+(α·β는 논문에서도 "tuned on a development set"이라고만 하고 값을 밝히지 않습니다.)
+</div>
+
+<h3>언어 모델의 실제 규모 (3.8절)</h3>
+<table class="tbl">
+  <tr><th></th><th>영어</th><th>중국어</th></tr>
+  <tr><td class="rowhead">종류</td><td>Kneser-Ney 5-gram (단어)</td><td>Kneser-Ney 5-gram (문자)</td></tr>
+  <tr><td class="rowhead">어휘</td><td>최빈 400,000 단어</td><td>—</td></tr>
+  <tr><td class="rowhead">학습 텍스트</td><td>Common Crawl 2.5억 줄</td><td>내부 코퍼스 80억 줄</td></tr>
+  <tr><td class="rowhead">n-gram 수</td><td>약 8.5억</td><td>약 20억</td></tr>
+  <tr><td class="rowhead">빔 크기</td><td class="hl">500</td><td class="hl">200</td></tr>
+</table>
+
+<!-- ================================================================ -->
+<h2 id="s7">§7 배포 — 40ms마다 100만 번 조회를 어떻게 줄였나</h2>
+
+<p>
+여기서 실전 문제가 터집니다. 빔 서치는 매 프레임, <strong>모든 빔 × 모든 후보 글자</strong>에 대해
+언어 모델을 조회해야 합니다. 그리고 n-gram 조회는 대부분 <strong>캐시에 없는 메모리 읽기</strong>입니다.
+</p>
+
+<blockquote>
+"The direct implementation of beam search means that each time-step dispatches one lookup per character for each beam.
+In Mandarin, this results in over 1M lookups per 40ms stride of speech data, which is too slow for deployment."
+</blockquote>
+
+<p>
+해법은 놀랍도록 단순합니다.
+</p>
+
+<blockquote>
+"Rather than considering all characters as viable additions to the beam, we only consider the fewest number of
+characters whose cumulative probability is at least p. In practice, we have found that <strong>p = 0.99</strong> works well.
+Additionally, we limit ourselves to no more than <strong>40 characters</strong>.
+This speeds up the Mandarin language model lookup time by a factor of <strong>150x</strong>,
+and has a negligible effect on the CER (0.1-0.3% relative)."
+</blockquote>
+
+<p>
+즉 <strong>확률 낮은 글자는 아예 후보에서 뺍니다.</strong> ASR 출력 분포는 대개 매우 뾰족해서,
+누적 확률 99%를 채우는 데 몇 글자면 충분합니다. 나머지 수천 글자를 조회하는 건 순수한 낭비죠.
+</p>
+
+<div class="demo">
+<div class="demo-title">데모 6 · 가지치기 계산기</div>
+<div class="demo-sub">막대는 확률 순으로 정렬된 후보 글자들입니다. 빨간 선까지가 누적 p를 채우는 지점입니다.</div>
+<div class="controls">
+  <label>어휘 크기 <input type="number" id="d6v" value="6000" min="2" max="60000" step="1"></label>
+  <label>빔 크기 <input type="number" id="d6beam" value="200" min="1" max="2000" step="1"></label>
+  <label>누적 임계 p <input type="range" id="d6p" min="50" max="100" value="99" step="1"> <span class="readout" id="d6pv">0.99</span></label>
+  <label>상한 <input type="number" id="d6cap" value="40" min="1" max="1000" step="1"></label>
+  <label>분포 애매함 λ <input type="range" id="d6sharp" min="1" max="30" value="9" step="1"> <span class="readout" id="d6sharpv">9</span></label>
+</div>
+<div class="legend">
+  <span>λ가 <strong>작을수록</strong> 신경망이 확신에 찬 프레임 (후보 몇 개면 99%가 채워짐)</span>
+  <span>λ가 <strong>클수록</strong> 애매한 프레임 (후보가 많이 필요 → 상한 40자가 실제로 작동)</span>
+</div>
+<div class="scrollx"><canvas id="d6canvas"></canvas></div>
+<div class="stats">
+  <div class="stat">p를 채우는 데 필요한 글자<b id="d6k">–</b></div>
+  <div class="stat hl">실제 후보 수 (상한 적용)<b id="d6kept">–</b></div>
+  <div class="stat bad">가지치기 전 조회 (프레임당)<b id="d6full">–</b></div>
+  <div class="stat hl">가지치기 후 조회<b id="d6pruned">–</b></div>
+  <div class="stat hl">가속<b id="d6speed">–</b></div>
+</div>
+</div>
+
+<div class="note">
+<strong>논문의 "150배"는 그냥 나눗셈입니다.</strong> 중국어 어휘가 6,000자 규모이고 상한이 40자니까
+<code>6000 ÷ 40 = 150</code>. 그리고 빔 200 × 6,000자 = <strong>120만 회</strong> —
+논문의 "over 1M lookups per 40ms stride"와 정확히 맞아떨어집니다.
+기본값(λ=9)에서 위 계산기가 이 숫자들을 그대로 재현합니다.
+</div>
+
+<p>
+λ 슬라이더를 <strong>왼쪽으로</strong> 밀어 보세요. 신경망이 확신에 찬 프레임에서는 후보 대여섯 개면
+누적 99%가 채워지고, 가속은 150배를 훌쩍 넘습니다. 즉 <strong>150배는 상한 40자가 걸리는 최악의 경우</strong>이고,
+평균적으로는 더 절약됩니다. 반대로 λ를 키우면 상한이 없을 때 후보가 수십~수백 개로 불어나는데,
+논문이 <code>p=0.99</code> 외에 <strong>"최대 40자"</strong>라는 하드 리밋을 하나 더 둔 이유가 여기 있습니다 —
+애매한 프레임에서 비용이 터지는 걸 막는 안전핀입니다.
+</p>
+
+<!-- ================================================================ -->
+<h2 id="s8">§8 논문의 결과 — 언어 모델은 얼마나 도왔나</h2>
+
+<p>
+논문 Table 6은 같은 모델을 언어 모델 없이 / 있게 디코딩한 결과입니다
+(영어는 WER, 중국어는 CER, 낮을수록 좋음).
+</p>
+
+<div class="demo">
+<div class="demo-title">데모 7 · Table 6 — 언어 모델의 효과</div>
+<div class="demo-sub">막대가 짧을수록 좋습니다. 순환층이 많아질수록 언어 모델의 <em>상대적</em> 기여가 줄어듭니다.</div>
+<div class="bars" id="d7bars"></div>
+<table class="tbl">
+  <tr><th>언어</th><th>구조</th><th>LM 없음</th><th>LM 있음</th><th>상대 개선</th></tr>
+  <tr><td class="rowhead">영어 (WER)</td><td>5층, 순환 1</td><td>27.79</td><td>14.39</td><td class="hl">48.2%</td></tr>
+  <tr><td class="rowhead">영어 (WER)</td><td>9층, 순환 7</td><td>14.93</td><td>9.52</td><td>36.2%</td></tr>
+  <tr><td class="rowhead">중국어 (CER)</td><td>5층, 순환 1</td><td>9.80</td><td>7.13</td><td class="hl">27.2%</td></tr>
+  <tr><td class="rowhead">중국어 (CER)</td><td>9층, 순환 7</td><td>7.55</td><td>5.81</td><td>23.1%</td></tr>
+</table>
+</div>
+
+<p>
+논문의 해석은 이렇습니다 — 순환층이 깊어질수록 신경망이 <strong>내부에 더 강한 암묵적 언어 모델</strong>을
+학습하므로, 외부 언어 모델이 보탤 게 줄어듭니다. 실제로 3.8절은 DS2가 외부 제약 없이도 철자를 꽤 잘 쓰고,
+동음이의어를 문맥으로 구분해 내는 사례가 많다고 언급합니다.
+</p>
+
+<p>
+그리고 영어가 중국어보다 언어 모델 이득이 큽니다. 영어 문자 모델은
+철자를 <em>지어내기</em> 쉬운 반면(<code>"beach"</code> vs <code>"beech"</code>),
+중국어는 문자 하나하나가 이미 의미 단위라 음향만으로도 제약이 강하기 때문입니다.
+</p>
+
+<!-- ================================================================ -->
+<h2 id="s9">§9 정리 — 한 문장으로</h2>
+
+<div class="note">
+<strong>DS2의 디코딩은 "프레임별 1등 이어 붙이기"가 아니라,
+<em>같은 문장으로 축약되는 모든 정렬의 확률을 합산하면서</em> 접두사 후보 상위 N개를 끌고 가는 탐색이다.</strong><br>
+거기에 외부 n-gram 언어 모델(<code>α</code>)과 단어 삽입 보너스(<code>β</code>)를 더한
+<code>Q(y) = log p_ctc + α log p_lm + β·단어수</code>를 최대화한다.
+빔은 영어 500·중국어 200이고, 배포에서는 후보 글자를 누적 확률 0.99까지·최대 40자로 잘라
+언어 모델 조회를 150배 줄였다 (CER 영향 0.1~0.3% 상대).
+</div>
+
+<h3>헷갈리기 쉬운 것들</h3>
+<table class="tbl">
+  <tr><th>오해</th><th>실제</th></tr>
+  <tr><td class="rowhead">빔 서치가 "가장 확률 높은 경로"를 찾는다</td><td>가장 확률 높은 <strong>문장</strong>을 찾는다. 경로(정렬)는 합쳐 없앤다</td></tr>
+  <tr><td class="rowhead">blank는 무음(silence)이다</td><td>"출력할 글자 없음" 표시. 무음과는 별개이며, 같은 글자의 <strong>경계 표시</strong> 역할이 핵심</td></tr>
+  <tr><td class="rowhead">언어 모델이 CTC 확률을 대체한다</td><td>가중합이다. α로 발언권을 조절할 뿐 음향 항은 그대로 남는다</td></tr>
+  <tr><td class="rowhead">β는 성능 튜닝용 잡다한 항이다</td><td>log p_lm의 <strong>길이 편향을 상쇄</strong>하는 구조적 보정. 없으면 단어를 빠뜨린다</td></tr>
+  <tr><td class="rowhead">빔을 키울수록 계속 좋아진다</td><td>금방 포화된다. 논문도 중국어는 200에서 충분하다고 판단했다</td></tr>
+</table>
+
+<!-- ================================================================ -->
+<h2 id="s10">§10 이해도 퀴즈</h2>
+<div id="quizRoot"></div>
+
+<footer>
+<p>
+<a href="https://github.com/dev-jonghoonpark/how-ai-works">how-ai-works</a> 시리즈 ·
+원 논문 <a href="https://arxiv.org/abs/1512.02595" target="_blank" rel="noopener">arXiv:1512.02595</a> ·
+관련 자료 <a href="https://dev-jonghoonpark.github.io/how-row-convolution-works/">행 합성곱은 어떻게 미래를 엿보는가</a>
+</p>
+<p>모든 계산(정렬 전수 열거, prefix beam search, Q(y) 재순위, 가지치기 산출)은 순수 JavaScript로 이 페이지 안에서 수행됩니다.</p>
+</footer>
+
+</main>
+
+<script>
+"use strict";
+
+/* ================= 공통 ================= */
+const $ = s => document.querySelector(s);
+function css(v) { return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+function fit(cv, w, h) {
+  const dpr = window.devicePixelRatio || 1;
+  cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+  cv.style.width = w + 'px'; cv.style.height = h + 'px';
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return ctx;
+}
+function fmt(n) { return Math.round(n).toLocaleString('en-US'); }
+
+const redrawers = [];
+$('#themeToggle').addEventListener('click', () => {
+  const cur = document.documentElement.getAttribute('data-theme');
+  const dark = cur ? cur === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+  document.documentElement.setAttribute('data-theme', dark ? 'light' : 'dark');
+  redrawers.forEach(f => { try { f(); } catch (e) { console.error(e); } });
+});
+
+/* ================= 장난감 확률표 (전 데모 공용) ================= */
+const BLANK = '_';
+const ALPHA = ['_', 'c', 'a', 't'];
+const DIST = [
+  { c: 0.90, _: 0.05, a: 0.03, t: 0.02 },
+  { c: 0.60, _: 0.35, a: 0.03, t: 0.02 },
+  { _: 0.45, a: 0.40, c: 0.05, t: 0.10 },
+  { _: 0.45, a: 0.40, c: 0.05, t: 0.10 },
+  { t: 0.80, _: 0.15, a: 0.03, c: 0.02 },
+  { _: 0.70, t: 0.25, a: 0.03, c: 0.02 }
+];
+const T = DIST.length;
+const pf = (t, ch) => DIST[t][ch] || 0;
+
+function collapse(ali) {
+  let merged = '', prev = null;
+  for (const ch of ali) { if (ch !== prev) merged += ch; prev = ch; }
+  return { merged, final: merged.split('').filter(c => c !== BLANK).join('') };
+}
+function aliProb(ali) {
+  let p = 1;
+  for (let t = 0; t < ali.length; t++) p *= pf(t, ali[t]);
+  return p;
+}
+
+/* 전수 열거: 문장 -> {sum, count} */
+const EXHAUST = (function () {
+  const map = new Map();
+  const path = new Array(T);
+  (function rec(t) {
+    if (t === T) {
+      const y = collapse(path).final;
+      const e = map.get(y) || { sum: 0, count: 0 };
+      e.sum += aliProb(path); e.count += 1;
+      map.set(y, e);
+      return;
+    }
+    for (const ch of ALPHA) { path[t] = ch; rec(t + 1); }
+  })(0);
+  return map;
+})();
+const RANKED = [...EXHAUST.entries()].sort((a, b) => b[1].sum - a[1].sum);
+const BEST_Y = RANKED[0][0];
+const BEST_P = RANKED[0][1].sum;
+
+const GREEDY = (function () {
+  const ali = [];
+  for (let t = 0; t < T; t++) {
+    let best = ALPHA[0];
+    for (const ch of ALPHA) if (pf(t, ch) > pf(t, best)) best = ch;
+    ali.push(best);
+  }
+  return { ali, out: collapse(ali).final, p: aliProb(ali) };
+})();
+
+/* ================= 데모 1 · 정렬 편집기 ================= */
+(function () {
+  let ali = ['c', 'c', '_', '_', 't', '_'];
+
+  function render() {
+    const wrap = $('#d1slots');
+    wrap.innerHTML = '';
+    for (let t = 0; t < T; t++) {
+      const box = document.createElement('div');
+      box.className = 'slotwrap';
+      const el = document.createElement('div');
+      el.className = 'slot' + (ali[t] === BLANK ? ' blank' : '') + (t > 0 && ali[t] === ali[t - 1] ? ' dup' : '');
+      el.textContent = ali[t];
+      el.title = 'p = ' + pf(t, ali[t]).toFixed(2);
+      el.addEventListener('click', () => {
+        ali[t] = ALPHA[(ALPHA.indexOf(ali[t]) + 1) % ALPHA.length];
+        render();
+      });
+      const lab = document.createElement('div');
+      lab.className = 't';
+      lab.textContent = 't=' + t;
+      box.appendChild(el); box.appendChild(lab);
+      wrap.appendChild(box);
+    }
+    const c = collapse(ali);
+    $('#d1raw').textContent = ali.join(' ');
+    $('#d1merged').textContent = c.merged.split('').join(' ') || '(빈 문자열)';
+    $('#d1final').textContent = c.final ? '"' + c.final + '"' : '(빈 문자열)';
+    $('#d1ap').textContent = aliProb(ali).toFixed(5);
+    const e = EXHAUST.get(c.final) || { sum: 0, count: 0 };
+    $('#d1cnt').textContent = fmt(e.count) + ' 개';
+    $('#d1sum').textContent = e.sum.toFixed(5);
+  }
+
+  $('#d1ex1').addEventListener('click', () => { ali = ['c', 'c', '_', '_', 't', '_']; render(); });
+  $('#d1ex2').addEventListener('click', () => { ali = ['c', 'c', 'a', 'a', 't', '_']; render(); });
+  $('#d1ex3').addEventListener('click', () => { ali = ['t', '_', 't', 'a', 'c', 'c']; render(); });
+  render();
+})();
+
+/* ================= 데모 2 · 확률표 + 순위 ================= */
+(function () {
+  const g = $('#d2grid');
+  g.style.gridTemplateColumns = 'auto repeat(' + T + ', auto)';
+  const cell = (txt, cls) => {
+    const d = document.createElement('div');
+    d.className = 'pcell ' + (cls || '');
+    d.textContent = txt;
+    return d;
+  };
+  g.appendChild(cell('', 'head rowlab'));
+  for (let t = 0; t < T; t++) g.appendChild(cell('t=' + t, 'head'));
+  for (const ch of ALPHA) {
+    g.appendChild(cell(ch === BLANK ? '_ (blank)' : ch, 'rowlab'));
+    for (let t = 0; t < T; t++) {
+      const isMax = GREEDY.ali[t] === ch;
+      g.appendChild(cell(pf(t, ch).toFixed(2), isMax ? 'argmax' : ''));
+    }
+  }
+
+  $('#d2gali').textContent = GREEDY.ali.join(' ');
+  $('#d2gout').textContent = '"' + GREEDY.out + '"';
+  $('#d2best').textContent = '"' + BEST_Y + '"';
+
+  const top = RANKED.slice(0, 8);
+  const max = top[0][1].sum;
+  $('#d2bars').innerHTML = top.map(([y, e]) => {
+    const isBest = y === BEST_Y, isGreedy = y === GREEDY.out;
+    const label = (y ? '"' + y + '"' : '(빈 문자열)')
+      + (isBest ? ' <span style="color:var(--accent-ink)">← 최선</span>' : '')
+      + (isGreedy ? ' <span style="color:var(--crit)">← greedy</span>' : '');
+    return '<div class="bar-row"><div>' + label + '</div>' +
+      '<div class="bar-track"><div class="bar-fill ' + (isBest ? 'acc' : (isGreedy ? 'bad' : '')) +
+      '" style="width:' + (e.sum / max * 100).toFixed(1) + '%"></div></div>' +
+      '<div class="bar-val">' + e.sum.toFixed(5) + '</div></div>';
+  }).join('');
+})();
+
+/* ================= prefix beam search 엔진 ================= */
+function beamStep(beams, t) {
+  const next = new Map();
+  const get = k => { if (!next.has(k)) next.set(k, { pb: 0, pnb: 0 }); return next.get(k); };
+  for (const [prefix, s] of beams) {
+    const last = prefix.length ? prefix[prefix.length - 1] : null;
+    for (const ch of ALPHA) {
+      const pc = pf(t, ch);
+      if (pc === 0) continue;
+      if (ch === BLANK) {
+        get(prefix).pb += pc * (s.pb + s.pnb);
+      } else if (ch === last) {
+        get(prefix).pnb += pc * s.pnb;
+        get(prefix + ch).pnb += pc * s.pb;
+      } else {
+        get(prefix + ch).pnb += pc * (s.pb + s.pnb);
+      }
+    }
+  }
+  return next;
+}
+function tot(s) { return s.pb + s.pnb; }
+function prune(map, width) {
+  return new Map([...map.entries()].sort((a, b) => tot(b[1]) - tot(a[1])).slice(0, width));
+}
+function runBeam(width) {
+  let beams = new Map([['', { pb: 1, pnb: 0 }]]);
+  for (let t = 0; t < T; t++) beams = prune(beamStep(beams, t), width);
+  const sorted = [...beams.entries()].sort((a, b) => tot(b[1]) - tot(a[1]));
+  return { top: sorted[0][0], p: tot(sorted[0][1]), sorted };
+}
+
+/* ================= 데모 3 · 스텝 실행기 ================= */
+(function () {
+  let width = 3, t = -1;
+  let beams = new Map([['', { pb: 1, pnb: 0 }]]);
+  let lastFull = null, lastKept = null, prevKeys = new Set(['']);
+
+  function reset() {
+    t = -1;
+    beams = new Map([['', { pb: 1, pnb: 0 }]]);
+    lastFull = null; lastKept = null; prevKeys = new Set(['']);
+    render();
+  }
+
+  function step() {
+    if (t >= T - 1) return;
+    t++;
+    prevKeys = new Set(beams.keys());
+    const full = beamStep(beams, t);
+    lastFull = full;
+    beams = prune(full, width);
+    lastKept = new Set(beams.keys());
+    render();
+  }
+
+  function render() {
+    $('#d3wv').textContent = width;
+    $('#d3t').textContent = t < 0 ? '시작 전' : ('t = ' + t + ' / ' + (T - 1));
+    $('#d3n').textContent = beams.size;
+    const sorted = [...beams.entries()].sort((a, b) => tot(b[1]) - tot(a[1]));
+    const topKey = sorted[0][0];
+    $('#d3top').textContent = topKey ? '"' + topKey + '"' : '""';
+    $('#d3topbox').className = 'stat ' + (t === T - 1 ? (topKey === BEST_Y ? 'hl' : 'bad') : '');
+    $('#d3next').disabled = t >= T - 1;
+    $('#d3all').disabled = t >= T - 1;
+
+    // 표: 이번 프레임에 만들어진 전체 후보(잘린 것 포함)
+    const src = lastFull ? [...lastFull.entries()] : [...beams.entries()];
+    src.sort((a, b) => tot(b[1]) - tot(a[1]));
+    let html = '<tr><th>순위</th><th class="mono">접두사</th><th class="mono">p_b (blank로 끝남)</th>'
+      + '<th class="mono">p_nb (글자로 끝남)</th><th class="mono">합</th><th>상태</th></tr>';
+    src.forEach(([k, s], i) => {
+      const kept = !lastKept || lastKept.has(k);
+      const isNew = lastFull && !prevKeys.has(k);
+      const status = !kept ? '✂️ 버림'
+        : (isNew ? '<span style="color:var(--s3)">신규</span>' : '유지');
+      html += '<tr' + (isNew && kept ? ' class="newbeam"' : '') + ''
+        + (kept ? '' : ' style="opacity:.42"') + '>'
+        + '<td>' + (i + 1) + '</td>'
+        + '<td class="mono' + (kept && i === 0 ? ' hl' : '') + '">' + (k ? '"' + k + '"' : '""') + '</td>'
+        + '<td class="mono">' + s.pb.toFixed(5) + '</td>'
+        + '<td class="mono">' + s.pnb.toFixed(5) + '</td>'
+        + '<td class="mono">' + tot(s).toFixed(5) + '</td>'
+        + '<td>' + status + '</td></tr>';
+    });
+    $('#d3table').innerHTML = html;
+
+    let msg;
+    if (t < 0) msg = '시작 상태: 빈 접두사 <code>""</code> 하나뿐이고, 아직 아무 글자도 안 나왔으니 <code>p_b = 1</code>입니다.';
+    else if (t < T - 1) {
+      msg = '프레임 <code>t=' + t + '</code>을 처리했습니다. 현재 1위는 <code>' + (topKey || '""') + '</code>.';
+      if (t === 2) msg += ' — 이 프레임에서 <code>a</code>(0.40)가 blank(0.45)에 아슬아슬하게 밀리지만, 빔은 <code>"ca"</code>를 <strong>버리지 않고</strong> 들고 갑니다. greedy와 갈리는 지점입니다.';
+    } else {
+      msg = topKey === BEST_Y
+        ? '✅ 끝났습니다. 최종 1위 <code>"' + topKey + '"</code> — 전수 열거 정답과 일치합니다 (정답 확률 ' + BEST_P.toFixed(5) + ').'
+        : '❌ 끝났습니다. 최종 1위는 <code>"' + topKey + '"</code>지만 정답은 <code>"' + BEST_Y + '"</code>입니다. 빔 폭을 늘려 보세요.';
+    }
+    $('#d3msg').innerHTML = msg;
+  }
+
+  $('#d3next').addEventListener('click', step);
+  $('#d3all').addEventListener('click', () => { while (t < T - 1) step(); });
+  $('#d3reset').addEventListener('click', reset);
+  $('#d3w').addEventListener('input', e => { width = +e.target.value; reset(); });
+  reset();
+})();
+
+/* ================= 데모 4 · 빔 폭 비교 ================= */
+(function () {
+  const widths = [1, 2, 3, 5, 10, 20, 50];
+  let html = '<tr><th>빔 폭</th><th class="mono">최종 1위</th><th class="mono">추정 확률</th><th>정답?</th><th>전수 열거 대비</th></tr>';
+  for (const w of widths) {
+    const r = runBeam(w);
+    const ok = r.top === BEST_Y;
+    html += '<tr><td>' + w + '</td>'
+      + '<td class="mono ' + (ok ? 'hl' : 'bad') + '">"' + r.top + '"</td>'
+      + '<td class="mono">' + r.p.toFixed(5) + '</td>'
+      + '<td>' + (ok ? '✅' : '❌') + '</td>'
+      + '<td class="mono">' + (r.p / BEST_P * 100).toFixed(2) + '%</td></tr>';
+  }
+  $('#d4table').innerHTML = html;
+})();
+
+/* ================= 데모 5 · Q(y) 재순위 ================= */
+(function () {
+  // 합성 예시 — 논문 수치가 아님
+  const CAND = [
+    { y: 'recognize speech',   ctc: -3.2, lm: -12.4, wc: 2, truth: true },
+    { y: 'wreck a nice beach', ctc: -2.9, lm: -19.8, wc: 4 },
+    { y: 'recognise speech',   ctc: -3.4, lm: -16.2, wc: 2 },
+    { y: 'recognize peach',    ctc: -4.8, lm: -15.1, wc: 2 },
+    { y: 'reckon eyes speech', ctc: -4.1, lm: -21.5, wc: 3 }
+  ];
+  function render() {
+    const a = +$('#d5a').value / 10, b = +$('#d5b').value / 10;
+    $('#d5av').textContent = a.toFixed(1);
+    $('#d5bv').textContent = b.toFixed(1);
+    const scored = CAND.map(c => ({ ...c, Q: c.ctc + a * c.lm + b * c.wc }))
+      .sort((x, y2) => y2.Q - x.Q);
+    const best = scored[0].Q, worst = scored[scored.length - 1].Q;
+    const span = Math.max(1e-6, best - worst);
+    $('#d5bars').innerHTML = scored.map(c => {
+      const w = 12 + 88 * (1 - (best - c.Q) / span);
+      const cls = c.truth ? 'acc' : (c === scored[0] ? 'bad' : 'f3');
+      return '<div class="bar-row"><div>' + c.y + (c.truth ? ' <span style="color:var(--accent-ink)">← 정답</span>' : '') + '</div>' +
+        '<div class="bar-track"><div class="bar-fill ' + cls + '" style="width:' + w.toFixed(1) + '%"></div></div>' +
+        '<div class="bar-val">' + c.Q.toFixed(2) + '</div></div>';
+    }).join('');
+    let html = '<tr><th class="mono">y</th><th class="mono">log p_ctc</th><th class="mono">α·log p_lm</th>'
+      + '<th class="mono">β·단어수</th><th class="mono">Q(y)</th></tr>';
+    scored.forEach((c, i) => {
+      html += '<tr><td class="rowhead">' + c.y + '</td>'
+        + '<td class="mono">' + c.ctc.toFixed(2) + '</td>'
+        + '<td class="mono">' + (a * c.lm).toFixed(2) + '</td>'
+        + '<td class="mono">+' + (b * c.wc).toFixed(2) + '</td>'
+        + '<td class="mono ' + (i === 0 ? (c.truth ? 'hl' : 'bad') : '') + '">' + c.Q.toFixed(2) + '</td></tr>';
+    });
+    $('#d5table').innerHTML = html;
+    $('#d5win').textContent = scored[0].y;
+    const ok = !!scored[0].truth;
+    $('#d5ok').textContent = ok ? '✅ 맞음' : '❌ 틀림';
+    $('#d5winbox').className = 'stat ' + (ok ? 'hl' : 'bad');
+  }
+  $('#d5a').addEventListener('input', render);
+  $('#d5b').addEventListener('input', render);
+  $('#d5r0').addEventListener('click', () => { $('#d5a').value = 0; $('#d5b').value = 0; render(); });
+  $('#d5r1').addEventListener('click', () => { $('#d5a').value = 10; $('#d5b').value = 0; render(); });
+  $('#d5r2').addEventListener('click', () => { $('#d5a').value = 10; $('#d5b').value = 40; render(); });
+  render();
+})();
+
+/* ================= 데모 6 · 가지치기 계산기 ================= */
+(function () {
+  const cv = $('#d6canvas');
+  const CW = 840, CH = 200;
+  const ctx = fit(cv, CW, CH);
+
+  function state() {
+    const V = Math.max(2, Math.min(60000, +$('#d6v').value || 2));
+    const beam = Math.max(1, Math.min(2000, +$('#d6beam').value || 1));
+    const p = +$('#d6p').value / 100;
+    const cap = Math.max(1, Math.min(1000, +$('#d6cap').value || 1));
+    const sharp = +$('#d6sharp').value;
+    return { V, beam, p, cap, sharp };
+  }
+  // 뾰족한 사후분포 근사: 기하급수 감쇠
+  function dist(V, sharp) {
+    const lam = sharp;           // 클수록 완만
+    const raw = [];
+    let Z = 0;
+    const N = Math.min(V, 400);  // 그리기·계산용 상위 400개면 충분
+    for (let i = 0; i < N; i++) { const v = Math.exp(-i / lam); raw.push(v); Z += v; }
+    // 꼬리(나머지 V-N개)는 무시 가능할 만큼 작다고 보고 정규화에 근사 포함
+    let tail = 0;
+    for (let i = N; i < V; i++) { const v = Math.exp(-i / lam); tail += v; if (v < 1e-15) break; }
+    Z += tail;
+    return raw.map(v => v / Z);
+  }
+
+  function render() {
+    const S = state();
+    $('#d6pv').textContent = S.p.toFixed(2);
+    $('#d6sharpv').textContent = S.sharp;
+    const ps = dist(S.V, S.sharp);
+    let cum = 0, k = ps.length;
+    for (let i = 0; i < ps.length; i++) { cum += ps[i]; if (cum >= S.p) { k = i + 1; break; } }
+    const kept = Math.min(k, S.cap, S.V);
+    const full = S.beam * S.V;
+    const pruned = S.beam * kept;
+
+    $('#d6k').textContent = fmt(k) + ' 자';
+    $('#d6kept').textContent = fmt(kept) + ' 자';
+    $('#d6full').textContent = fmt(full) + ' 회';
+    $('#d6pruned').textContent = fmt(pruned) + ' 회';
+    $('#d6speed').textContent = (full / pruned).toFixed(1) + '×';
+
+    // 그리기
+    const SHOW = 60;
+    const PAD_L = 44, PAD_B = 34, PAD_T = 16, PAD_R = 16;
+    const w = CW - PAD_L - PAD_R, h = CH - PAD_T - PAD_B;
+    ctx.clearRect(0, 0, CW, CH);
+    ctx.font = '11px ui-monospace, Menlo, monospace';
+    ctx.textBaseline = 'middle';
+    const bw = w / SHOW;
+    const maxp = ps[0] || 1;
+    for (let i = 0; i < SHOW; i++) {
+      const v = ps[i] || 0;
+      const bh = Math.max(1, (v / maxp) * h);
+      ctx.fillStyle = (i < kept) ? css('--accent') : css('--line');
+      ctx.fillRect(PAD_L + i * bw + .5, PAD_T + h - bh, Math.max(1, bw - 1.5), bh);
+    }
+    // 축
+    ctx.strokeStyle = css('--line'); ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(PAD_L, PAD_T + h + .5); ctx.lineTo(PAD_L + w, PAD_T + h + .5); ctx.stroke();
+    // 컷 라인
+    const cx = PAD_L + Math.min(SHOW, kept) * bw;
+    ctx.strokeStyle = css('--crit'); ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.moveTo(cx, PAD_T); ctx.lineTo(cx, PAD_T + h); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = css('--crit');
+    ctx.textAlign = cx > CW - 160 ? 'right' : 'left';
+    ctx.fillText('여기서 자름 (' + kept + '자)', cx + (cx > CW - 160 ? -6 : 6), PAD_T + 10);
+    // 라벨
+    ctx.fillStyle = css('--muted');
+    ctx.textAlign = 'center';
+    ctx.fillText('확률 순으로 정렬한 후보 글자 (상위 ' + SHOW + '개만 표시 · 전체 ' + fmt(S.V) + '자)', PAD_L + w / 2, CH - 12);
+    ctx.textAlign = 'right';
+    ctx.fillText('p', PAD_L - 8, PAD_T + 6);
+  }
+
+  ['#d6v', '#d6beam', '#d6p', '#d6cap', '#d6sharp'].forEach(s => {
+    $(s).addEventListener('input', render);
+  });
+  redrawers.push(render);
+  render();
+})();
+
+/* ================= 데모 7 · Table 6 ================= */
+(function () {
+  const ROWS = [
+    ['영어 5층 · LM 없음', 27.79, 'bad'], ['영어 5층 · LM 있음', 14.39, 'acc'],
+    ['영어 9층 · LM 없음', 14.93, 'bad'], ['영어 9층 · LM 있음', 9.52, 'acc'],
+    ['중국어 5층 · LM 없음', 9.80, 'f3'], ['중국어 5층 · LM 있음', 7.13, 'f2'],
+    ['중국어 9층 · LM 없음', 7.55, 'f3'], ['중국어 9층 · LM 있음', 5.81, 'f2']
+  ];
+  const max = Math.max(...ROWS.map(r => r[1]));
+  $('#d7bars').innerHTML = ROWS.map(r =>
+    '<div class="bar-row"><div>' + r[0] + '</div>' +
+    '<div class="bar-track"><div class="bar-fill ' + r[2] + '" style="width:' + (r[1] / max * 100).toFixed(1) + '%"></div></div>' +
+    '<div class="bar-val">' + r[1].toFixed(2) + '</div></div>'
+  ).join('');
+})();
+
+/* ================= 퀴즈 ================= */
+(function () {
+  const QS = [
+    {
+      q: 'CTC 축약에서 정렬 <code>t _ t</code>는 무엇이 되나?',
+      opts: ['"t"', '"tt"', '"t_t"', '빈 문자열'],
+      a: 1,
+      e: '①연속 중복 병합 — 연속이 아니므로 그대로 t_t. ②blank 제거 — "tt". blank가 두 t 사이의 경계 역할을 합니다. 반면 <code>t t</code>는 병합되어 "t"가 됩니다. blank가 없으면 "tt"를 표현할 방법이 없습니다.'
+    },
+    {
+      q: 'greedy 디코딩이 최적이 아닌 근본적인 이유는?',
+      opts: [
+        '탐욕적으로 골라 나중에 더 좋은 글자를 놓치기 때문',
+        '가장 확률 높은 <em>정렬</em>을 찾을 뿐, 여러 정렬에 흩어진 확률을 합산해 가장 확률 높은 <em>문장</em>을 찾지 않기 때문',
+        '언어 모델을 쓰지 않기 때문',
+        'blank를 제대로 처리하지 못하기 때문'
+      ],
+      a: 1,
+      e: 'p(y|x)는 y로 축약되는 모든 정렬의 확률 <strong>합</strong>입니다. greedy는 단 하나의 정렬만 봅니다. 이 페이지의 장난감 예제에서 greedy는 확률 0.204인 "ct"를 내놓지만, 정답 "cat"의 합산 확률은 0.425입니다.'
+    },
+    {
+      q: 'prefix beam search가 접두사마다 p_b와 p_nb를 따로 관리하는 이유는?',
+      opts: [
+        '수치 안정성을 위해',
+        '언어 모델 점수를 따로 저장하려고',
+        '다음 글자가 직전 글자와 같을 때, blank로 끝났는지 여부에 따라 병합될지 확장될지가 갈리기 때문',
+        '빔을 정렬할 때 더 빠르기 때문'
+      ],
+      a: 2,
+      e: '접두사 "ca" 뒤에 또 a가 올 때, 글자로 끝난 정렬(…c a)은 병합되어 "ca" 그대로지만, blank로 끝난 정렬(…c a _)은 "caa"로 확장됩니다. 두 확률을 섞어 두면 이 구분이 불가능합니다.'
+    },
+    {
+      q: 'Q(y) = log p_ctc + α log p_lm + β·word_count 에서 β 항이 필요한 이유는?',
+      opts: [
+        '언어 모델의 신뢰도를 조절하려고',
+        'log p_lm이 단어가 늘수록 작아져 짧은 문장을 선호하는 편향을 상쇄하려고',
+        '긴 문장의 계산량을 보정하려고',
+        'CTC의 blank 개수를 보정하려고'
+      ],
+      a: 1,
+      e: '단어를 하나 더할 때마다 음수 로그 확률이 더해지므로 LM은 구조적으로 짧은 문장에 유리합니다. β는 그 평형추입니다. 다만 β를 너무 키우면 반대로 없는 단어를 만들어 내는데, 데모 5의 "β 과다" 버튼에서 확인할 수 있습니다.'
+    },
+    {
+      q: 'DS2가 배포에서 언어 모델 조회를 150배 줄인 방법은?',
+      opts: [
+        '빔 크기를 200에서 2로 줄였다',
+        '언어 모델을 GPU 메모리에 통째로 올렸다',
+        '후보 글자를 누적 확률 0.99를 채우는 최소 개수로, 최대 40자까지만 제한했다',
+        'n-gram 차수를 5에서 3으로 낮췄다'
+      ],
+      a: 2,
+      e: '7.3절. 중국어 어휘 6,000자 규모를 40자로 자르면 6000/40 = 150배입니다. 빔 200 × 6,000자 = 120만 회가 "over 1M lookups per 40ms stride"의 정체이고, 가지치기 후에는 200 × 40 = 8,000회가 됩니다. CER 영향은 상대 0.1~0.3%에 불과했습니다.'
+    },
+    {
+      q: '논문 Table 6에서 순환층이 1개에서 7개로 늘자 언어 모델의 <em>상대적</em> 개선폭이 영어 기준 48%에서 36%로 줄었습니다. 논문의 해석은?',
+      opts: [
+        '깊은 모델이 과적합해서 언어 모델을 무시하기 때문',
+        '깊은 모델일수록 신경망이 더 강한 암묵적 언어 모델을 내부에 학습하기 때문',
+        '빔 크기가 부족해졌기 때문',
+        '깊은 모델은 blank를 더 많이 출력하기 때문'
+      ],
+      a: 1,
+      e: '"We hypothesize that the network builds a stronger implicit language model with more recurrent layers." 3.8절은 DS2가 외부 제약 없이도 철자를 잘 쓰고 동음이의어를 문맥으로 구분하는 사례가 많다고 언급합니다.'
+    }
+  ];
+
+  const root = $('#quizRoot');
+  QS.forEach((item, qi) => {
+    const box = document.createElement('div');
+    box.className = 'quiz';
+    const q = document.createElement('div');
+    q.className = 'q';
+    q.innerHTML = 'Q' + (qi + 1) + '. ' + item.q;
+    box.appendChild(q);
+    const opts = document.createElement('div');
+    opts.className = 'opts';
+    const expl = document.createElement('div');
+    expl.className = 'expl';
+    expl.innerHTML = item.e;
+    item.opts.forEach((o, oi) => {
+      const b = document.createElement('button');
+      b.innerHTML = o;
+      b.addEventListener('click', () => {
+        if (box.dataset.done) return;
+        box.dataset.done = '1';
+        opts.querySelectorAll('button').forEach((bb, bi) => {
+          if (bi === item.a) bb.classList.add('correct');
+          else if (bi === oi) bb.classList.add('wrong');
+        });
+        expl.classList.add('show');
+      });
+      opts.appendChild(b);
+    });
+    box.appendChild(opts);
+    box.appendChild(expl);
+    root.appendChild(box);
+  });
+})();
+</script>
+</body>
+</html>
