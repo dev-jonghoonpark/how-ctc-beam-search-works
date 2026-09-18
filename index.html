@@ -153,6 +153,34 @@ table.tbl tr.newbeam td { background: color-mix(in srgb, var(--s3) 12%, var(--su
 .pcell.argmax { border-color: var(--s1); background: color-mix(in srgb, var(--s1) 22%, var(--surface)); font-weight: 700; }
 .pcell.rowlab { width: 46px; background: transparent; border-color: transparent; color: var(--ink2); text-align: right; }
 
+/* flowchart figure */
+.flowfig { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 16px 12px; margin: 22px 0; }
+.flowfig svg { display: block; width: 100%; min-width: 660px; height: auto; }
+.flowfig figcaption { color: var(--muted); font-size: .84rem; margin-top: 10px; text-align: center; }
+.flowfig figcaption code { font-size: .92em; }
+.fl-box { fill: var(--surface2); stroke: var(--line); stroke-width: 1; }
+.fl-dia { fill: var(--surface2); stroke: var(--ink2); stroke-width: 1.2; }
+.fl-edge { fill: none; stroke: var(--ink2); stroke-width: 1.4; marker-end: url(#fl-arrow); }
+.fl-head { fill: var(--ink2); }
+.fl-code { fill: var(--ink); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; }
+.fl-sub { fill: var(--ink2); font-size: 11px; }
+.fl-lab { fill: var(--ink2); font-size: 11.5px; font-weight: 700; }
+.fl-mid { text-anchor: middle; }
+.fl-tag { font-size: 12.5px; font-weight: 700; letter-spacing: .02em; }
+.fl-loop { fill: none; stroke: var(--s3); stroke-width: 1.2; stroke-dasharray: 5 4; opacity: .7; }
+.fl-loop2 { opacity: .55; }
+.fl-loop3 { opacity: .42; }
+.fl-looplab { fill: var(--s3); font-size: 11.5px; font-weight: 700; }
+.fl-back { fill: var(--muted); font-size: 11px; }
+.fl-a { fill: var(--accent-soft); stroke: var(--accent); }
+.fl-tag-a { fill: var(--accent-ink); }
+.fl-b { fill: color-mix(in srgb, var(--s3) 14%, var(--surface)); stroke: var(--s3); }
+.fl-tag-b { fill: var(--s3); }
+.fl-c { fill: color-mix(in srgb, var(--s1) 14%, var(--surface)); stroke: var(--s1); }
+.fl-tag-c { fill: var(--s1); }
+.fl-prune { fill: color-mix(in srgb, var(--s3) 10%, var(--surface)); stroke: var(--s3); }
+.fl-end { fill: var(--accent-soft); stroke: var(--accent); }
+@media (max-width: 620px) { .flowfig { padding: 14px 10px 10px; } }
 /* bars */
 .bars { display: grid; gap: 8px; margin: 14px 0; }
 .bar-row { display: grid; grid-template-columns: 200px 1fr 116px; gap: 10px; align-items: center; font-size: .86rem; }
@@ -393,6 +421,112 @@ for t in range(T):
     # 상위 beam_width 개만 남긴다  ← 여기가 "빔"
     beams = top_k(next, key=lambda s: s["pb"] + s["pnb"], k=beam_width)</code></pre>
 
+<figure class="flowfig">
+<div class="scrollx">
+<svg viewBox="0 0 820 890" role="img" aria-labelledby="flowTitle flowDesc">
+  <title id="flowTitle">prefix beam search 갱신 규칙 순서도</title>
+  <desc id="flowDesc">빈 접두사로 시작해 프레임 루프 안에서 빔과 기호를 이중으로 돌며, ch가 blank인지 직전 글자와 같은지에 따라 세 갈래(유지·분기·확장)로 p_b와 p_nb를 갱신하고, 프레임 끝마다 top_k로 빔 폭만큼 남긴 뒤, 마지막에 p_b+p_nb가 가장 큰 접두사를 문장으로 내놓는 흐름도.</desc>
+  <defs>
+    <marker id="fl-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" class="fl-head"/>
+    </marker>
+  </defs>
+
+  <!-- ── 루프 프레임 ── -->
+  <rect class="fl-loop" x="18" y="92" width="784" height="694" rx="16"/>
+  <text class="fl-looplab" x="36" y="114">프레임 루프 · t = 0 … T−1</text>
+  <text class="fl-back" x="36" y="774">↺ 다음 프레임</text>
+
+  <rect class="fl-loop fl-loop2" x="40" y="190" width="750" height="494" rx="14"/>
+  <text class="fl-looplab" x="58" y="212">빔 루프 · (prefix, s) ∈ beams</text>
+  <text class="fl-back" x="58" y="672">↺ 다음 빔</text>
+
+  <rect class="fl-loop fl-loop3" x="62" y="296" width="718" height="364" rx="12"/>
+  <text class="fl-looplab" x="80" y="318">기호 루프 · (ch, pc) ∈ dist[t]</text>
+  <text class="fl-back" x="80" y="648">↺ 다음 기호</text>
+
+  <!-- ── 시작 ── -->
+  <rect class="fl-box" x="60" y="14" width="380" height="54" rx="10"/>
+  <text class="fl-code fl-mid" x="250" y="39">beams = { "" : pb = 1.0, pnb = 0.0 }</text>
+  <text class="fl-sub fl-mid" x="250" y="56">빈 접두사 하나로 시작</text>
+  <path class="fl-edge" d="M250,68 L250,120"/>
+
+  <!-- ── next 초기화 ── -->
+  <rect class="fl-box" x="70" y="124" width="360" height="40" rx="10"/>
+  <text class="fl-code fl-mid" x="250" y="149">next = 빈 표 (pb = 0, pnb = 0)</text>
+  <path class="fl-edge" d="M250,164 L250,218"/>
+
+  <!-- ── last 계산 ── -->
+  <rect class="fl-box" x="80" y="222" width="340" height="48" rx="10"/>
+  <text class="fl-code fl-mid" x="250" y="243">last = prefix[-1]</text>
+  <text class="fl-sub fl-mid" x="250" y="260">빈 접두사면 None</text>
+  <path class="fl-edge" d="M250,270 L250,326"/>
+
+  <!-- ── 분기 1 ── -->
+  <polygon class="fl-dia" points="150,362 250,330 350,362 250,394"/>
+  <text class="fl-code fl-mid" x="250" y="366">ch == BLANK ?</text>
+
+  <path class="fl-edge" d="M350,362 L424,362"/>
+  <text class="fl-lab" x="376" y="355">예</text>
+
+  <rect class="fl-box fl-a" x="430" y="326" width="340" height="72" rx="10"/>
+  <text class="fl-tag fl-tag-a" x="446" y="347">A · 유지</text>
+  <text class="fl-code" x="446" y="369">next[prefix].pb += pc × (pb + pnb)</text>
+  <text class="fl-sub" x="446" y="386">blank는 어느 쪽 뒤에 와도 결과가 같다 → 합쳐서 흡수</text>
+
+  <path class="fl-edge" d="M250,394 L250,442"/>
+  <text class="fl-lab" x="258" y="422">아니오</text>
+
+  <!-- ── 분기 2 ── -->
+  <polygon class="fl-dia" points="150,478 250,446 350,478 250,510"/>
+  <text class="fl-code fl-mid" x="250" y="482">ch == last ?</text>
+
+  <path class="fl-edge" d="M350,478 L424,478"/>
+  <text class="fl-lab" x="376" y="471">예</text>
+
+  <rect class="fl-box fl-b" x="430" y="424" width="340" height="108" rx="10"/>
+  <text class="fl-tag fl-tag-b" x="446" y="445">B · 분기</text>
+  <text class="fl-code" x="446" y="467">next[prefix].pnb += pc × pnb</text>
+  <text class="fl-sub" x="446" y="482">…a 뒤에 a → 병합, 접두사 그대로</text>
+  <text class="fl-code" x="446" y="504">next[prefix+ch].pnb += pc × pb</text>
+  <text class="fl-sub" x="446" y="519">…a_ 뒤에 a → blank가 경계, 확장</text>
+
+  <path class="fl-edge" d="M250,510 L250,600 L424,600"/>
+  <text class="fl-lab" x="258" y="546">아니오</text>
+
+  <rect class="fl-box fl-c" x="430" y="566" width="340" height="68" rx="10"/>
+  <text class="fl-tag fl-tag-c" x="446" y="587">C · 확장</text>
+  <text class="fl-code" x="446" y="609">next[prefix+ch].pnb += pc × (pb + pnb)</text>
+  <text class="fl-sub" x="446" y="626">새 글자는 무조건 확장</text>
+
+  <!-- ── 가지치기 ── -->
+  <path class="fl-edge" d="M250,660 L250,702"/>
+  <rect class="fl-box fl-prune" x="60" y="706" width="380" height="54" rx="10"/>
+  <text class="fl-code fl-mid" x="250" y="731">beams = top_k(next, pb + pnb, beam_width)</text>
+  <text class="fl-sub fl-mid" x="250" y="748">← 여기가 "빔" · 지수를 선형으로 자르는 유일한 지점</text>
+
+  <!-- ── 종료 ── -->
+  <path class="fl-edge" d="M250,786 L250,812"/>
+  <rect class="fl-box fl-end" x="60" y="812" width="380" height="50" rx="10"/>
+  <text class="fl-code fl-mid" x="250" y="842">argmax(pb + pnb) → 최종 문장</text>
+</svg>
+</div>
+<figcaption>위 코드를 그대로 옮긴 순서도. 지면상 <code>s["pb"]</code>를 <code>pb</code>로 줄여 썼습니다.</figcaption>
+</figure>
+
+<p>
+순서도로 보면 세 가지가 눈에 들어옵니다.
+</p>
+
+<ul>
+<li><strong>루프가 3중첩</strong> — 비용은 <code>T × 살아 있는 빔 수 × 알파벳 크기</code>입니다.
+전수 열거의 29¹⁰⁰이 100 × 500 × 29로 내려오는데, 그 일을 하는 칸은 맨 아래 <code>top_k</code> 하나뿐입니다.</li>
+<li><strong>p_b는 A에서만 늘어난다</strong> — 새로 확장된 접두사(<code>prefix+ch</code>)는 B·C에서 p_nb만 받습니다.
+그 접두사가 p_b를 갖는 건 <em>다음</em> 프레임에 blank가 와서 A를 타는 순간뿐이고, 이게 "blank가 경계를 만든다"는 말의 구현입니다.</li>
+<li><strong>갈라지는 칸은 B 하나</strong> — A와 C는 p_b와 p_nb를 더해서 한 군데로 보냅니다(= 구분할 필요가 없음).
+둘을 나눠 들고 다녀야 할 이유가 생기는 곳은 B뿐이고, 나머지 두 칸은 그 대가로 치르는 부기(bookkeeping)입니다.</li>
+</ul>
+
 <p>
 아래에서 이 알고리즘을 <strong>실제로</strong> 한 프레임씩 돌려 볼 수 있습니다. 위 확률표를 그대로 씁니다.
 </p>
@@ -457,6 +591,59 @@ This allows us to use a beam size of 200 with a negligible degradation in CER."
 여기까지는 <strong>음향 정보만</strong> 썼습니다. 그런데 신경망은 "recognize speech"와 "wreck a nice beach"를
 소리만으로는 구분하기 어렵습니다. 사람도 그렇죠. 구분하는 건 <strong>어느 쪽이 있을 법한 말인가</strong>라는 지식입니다.
 </p>
+
+
+<h3>언어 모델이란 무엇인가 — 소리를 안 보고 문장에만 점수를 매기는 표</h3>
+
+<p>
+언어 모델(LM)은 <strong>음성을 전혀 모릅니다.</strong> 글자·단어의 나열 하나를 받아
+"이게 실제 텍스트에 나올 법한가"만 확률로 답합니다. 지금까지 다룬 음향 모델(CTC 신경망)과는
+<strong>따로 학습해서, 디코딩할 때만 합칩니다.</strong> 그래서 §1의 확률표에는 LM이 관여한 적이 없습니다.
+</p>
+
+<p>
+DS2가 쓰는 LM은 신경망이 아니라 <strong>n-gram</strong>입니다. 거대한 텍스트 뭉치에서 단어 나열의
+빈도를 세어 만든 조회 표이고, 가정은 하나뿐입니다 — <strong>다음 단어는 바로 앞 n−1개 단어에만 의존한다.</strong>
+영어 모델이 5-gram이니 앞 4단어만 봅니다.
+</p>
+
+<pre><code>p_lm("wreck a nice beach")
+  = p(wreck | &lt;s&gt;) · p(a | &lt;s&gt; wreck) · p(nice | &lt;s&gt; wreck a) · p(beach | &lt;s&gt; wreck a nice)
+
+텍스트에서 센 결과 (예시 수치):
+  "recognize speech"  흔함  →  p(speech | … recognize)  = 0.021
+  "nice beach"        흔함  →  p(beach  | … a nice)     = 0.008
+  "wreck a"           드묾  →  p(a      | … wreck)      = 0.0004   ← 여기서 벌어진다</code></pre>
+
+<p>
+소리가 거의 같아도 단어 나열을 세어 보면 차이가 납니다. 빔 서치는 빔을 확장할 때마다
+이 표를 두드려서 그 차이를 점수에 반영합니다. 아래는 표 뒤에 숨은 용어들입니다.
+</p>
+
+<table class="tbl">
+  <tr><th>용어</th><th>뜻</th></tr>
+  <tr><td class="rowhead">n-gram</td>
+      <td>연속한 단어 n개. "8.5억 개"는 <strong>"앞 4단어 → 다음 단어" 조합 8.5억 개의 확률을 표로 들고 있다</strong>는 뜻입니다</td></tr>
+  <tr><td class="rowhead">Kneser-Ney</td>
+      <td>학습 텍스트에 한 번도 없던 조합에 확률 0을 주면 <strong>문장 전체가 0</strong>이 됩니다.
+      그래서 센 확률을 조금씩 깎아 미등장 조합에 나눠 주는데(=스무딩), 깎은 몫을
+      "그 단어가 <strong>몇 가지 서로 다른 문맥</strong> 뒤에 오는가"에 비례해 분배하는 게 Kneser-Ney입니다.
+      <code>Francisco</code>는 빈도는 높아도 거의 <code>San</code> 뒤에만 오므로 새 문맥에서는 낮게 잡힙니다</td></tr>
+  <tr><td class="rowhead">단어 LM vs 문자 LM</td>
+      <td>영어는 단어 단위, 중국어는 문자 단위입니다(아래 표). 중국어는 띄어쓰기가 없어 단어 경계를 먼저 정해야 하는데,
+      문자 단위로 가면 그 문제를 통째로 피합니다</td></tr>
+  <tr><td class="rowhead">어휘 400,000개</td>
+      <td>표 밖의 단어는 LM이 점수를 줄 수 없습니다. 고유명사·신조어에서
+      <code>α · log p_lm</code>이 오히려 정답을 깎아내리는 원인이 됩니다</td></tr>
+</table>
+
+<div class="note">
+<strong>왜 신경망 LM이 아닌가.</strong> 성능이 아니라 속도 때문입니다.
+빔 서치는 매 프레임 · 모든 빔 · 모든 후보 글자마다 LM을 한 번씩 두드립니다(§7에서 40ms에 100만 번).
+n-gram은 그게 메모리 읽기 한 번이지만, 신경망 LM은 순전파 한 번입니다.
+디코딩 시점에 외부 LM 점수를 더하는 이 구조 자체는 지금도 <strong>shallow fusion</strong>이라는 이름으로 쓰이고,
+달라진 건 표 자리에 신경망이 들어간 것뿐입니다.
+</div>
 
 <p>
 DS2는 외부 n-gram 언어 모델을 붙이고, 빔 서치가 최대화하는 목적함수를 이렇게 바꿉니다 (식 12).
