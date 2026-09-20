@@ -200,6 +200,9 @@ table.tbl tr.newbeam td { background: color-mix(in srgb, var(--s3) 12%, var(--su
 .tr-arrow { text-align: center; color: var(--muted); font-size: .82rem; margin: 12px 0 0; font-family: ui-monospace, Menlo, monospace; }
 .tr-cutline { font-size: .8rem; color: var(--muted); margin-top: 8px; font-family: ui-monospace, Menlo, monospace; word-break: break-word; }
 .tr-zero { color: var(--muted); }
+.tr-frame .note { margin: 14px 0 0; font-size: .88rem; }
+.tr-frame .note ul { margin: 8px 0 6px; padding-left: 20px; }
+.tr-frame .note li { margin: 6px 0; }
 @media (max-width: 620px) {
   .tr-frame { padding: 12px 10px 14px; border-radius: 12px; }
   .tr-frame table.tbl { font-size: .74rem; }
@@ -209,6 +212,7 @@ table.tbl tr.newbeam td { background: color-mix(in srgb, var(--s3) 12%, var(--su
   .tr-frame table.tbl td.mono.l { overflow-wrap: anywhere; }
   .trace-legend { gap: 8px 12px; font-size: .8rem; }
   .tr-arrow, .tr-cutline { font-size: .76rem; }
+  .tr-frame .note { font-size: .8rem; padding: 10px 12px; }
 }
 @media (max-width: 620px) { .flowfig { padding: 14px 10px 10px; } }
 /* bars */
@@ -618,6 +622,17 @@ for t in range(T):
 <tr><td>3</td><td class="mono">&quot;ct&quot;</td><td class="mono">0.00</td><td class="mono">0.018</td><td class="mono">0.018</td></tr>
 </table></div>
 <div class="tr-cutline">✂️ 버림 — &quot;ac&quot; 0.018 · &quot;&quot; 0.0175 · &quot;a&quot; 0.0129 · &quot;t&quot; 0.001 · &quot;at&quot; 0.0006 · &quot;cc&quot; 0.00 · &quot;aa&quot; 0.00</div>
+<div class="note">
+<strong><code>"c"</code>의 <code>p_nb</code> 0.57은 어디서 왔나</strong> — 한 줄이 아니라 <strong>서로 다른 두 빔</strong>이 같은 칸에 더한 결과입니다.
+<ul>
+<li>빔 <code>"c"</code>에서 <span class="rbadge rb">B</span> 병합 — <code>0.60 × 0.90 = 0.54</code><br>
+<code>c</code> 뒤에 또 <code>c</code> → 합쳐져서 여전히 <code>"c"</code>. 정렬로는 <code>c c</code>.</li>
+<li>빔 <code>""</code>에서 <span class="rbadge rc">C</span> 확장 — <code>0.60 × (0.05 + 0.00) = 0.03</code><br>
+빈 접두사(t=0에서 blank였던 경로) 뒤에 <code>c</code>가 처음 붙어 <code>"c"</code>. 정렬로는 <code>_ c</code>.</li>
+</ul>
+<code>0.54 + 0.03 = 0.57</code>. §4 첫머리의 "같은 접두사로 축약되는 정렬들을 하나로 묶어서 확률을 합쳐 둔다"가 바로 이 덧셈이고,
+코드에서는 <code>next</code>가 접두사를 키로 쓰는 딕셔너리라서 저절로 일어납니다.
+</div>
 </div>
 
 <div class="tr-frame">
