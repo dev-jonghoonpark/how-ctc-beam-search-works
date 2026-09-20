@@ -196,9 +196,20 @@ table.tbl tr.newbeam td { background: color-mix(in srgb, var(--s3) 12%, var(--su
 .tr-frame table.tbl td.l, .tr-frame table.tbl th.l { text-align: left; }
 .tr-frame table.tbl td.beamcell { text-align: left; font-family: ui-monospace, Menlo, monospace; background: var(--surface2); white-space: nowrap; }
 .tr-frame table.tbl td.beamcell small { display: block; margin-top: 3px; font-weight: 400; color: var(--muted); font-size: .92em; }
+.tr-frame .pp { white-space: nowrap; }
 .tr-arrow { text-align: center; color: var(--muted); font-size: .82rem; margin: 12px 0 0; font-family: ui-monospace, Menlo, monospace; }
 .tr-cutline { font-size: .8rem; color: var(--muted); margin-top: 8px; font-family: ui-monospace, Menlo, monospace; word-break: break-word; }
 .tr-zero { color: var(--muted); }
+@media (max-width: 620px) {
+  .tr-frame { padding: 12px 10px 14px; border-radius: 12px; }
+  .tr-frame table.tbl { font-size: .74rem; }
+  .tr-frame table.tbl th, .tr-frame table.tbl td { padding: 5px 6px; }
+  .tr-frame table.tbl th { white-space: nowrap; }
+  .tr-frame table.tbl td.beamcell { white-space: normal; }
+  .tr-frame table.tbl td.mono.l { overflow-wrap: anywhere; }
+  .trace-legend { gap: 8px 12px; font-size: .8rem; }
+  .tr-arrow, .tr-cutline { font-size: .76rem; }
+}
 @media (max-width: 620px) { .flowfig { padding: 14px 10px 10px; } }
 /* bars */
 .bars { display: grid; gap: 8px; margin: 14px 0; }
@@ -564,167 +575,167 @@ for t in range(T):
 <div class="tr-frame">
 <div class="tr-head"><span class="tr-t">t = 0</span><span class="tr-dist">_ 0.05 · c 0.90 · a 0.03 · t 0.02</span></div>
 <p class="tr-why">빔은 빈 접두사 하나뿐입니다. <code>last</code>가 <code>None</code>이라 B 규칙은 아예 걸리지 않습니다. blank는 A로 <code>""</code>의 <code>p_b</code>에 들어가고, 나머지 세 글자는 C로 각자 새 접두사의 <code>p_nb</code>에 들어갑니다. 이 프레임에서 새로 생긴 접두사는 모두 <code>p_b = 0</code>이라는 점을 봐 두세요.</p>
-<table class="tbl">
+<div class="scrollx"><table class="tbl">
 <tr><th>빔</th><th class="mono">ch</th><th>규칙</th><th class="l">갱신</th></tr>
-<tr><td class="beamcell" rowspan="4">&quot;&quot;<small>p_b 1.00 · p_nb 0.00</small></td><td class="mono">_ <span class="tr-zero">0.05</span></td><td><span class="rbadge ra">A</span></td><td class="mono l">next[&quot;&quot;].p_b += 0.05 × (1.00 + 0.00) = <strong>0.05</strong></td></tr>
+<tr><td class="beamcell" rowspan="4">&quot;&quot;<small><span class="pp">p_b 1.00</span> · <span class="pp">p_nb 0.00</span></small></td><td class="mono">_ <span class="tr-zero">0.05</span></td><td><span class="rbadge ra">A</span></td><td class="mono l">next[&quot;&quot;].p_b += 0.05 × (1.00 + 0.00) = <strong>0.05</strong></td></tr>
 <tr><td class="mono">c <span class="tr-zero">0.90</span></td><td><span class="rbadge rc">C</span></td><td class="mono l">next[&quot;c&quot;].p_nb += 0.90 × (1.00 + 0.00) = <strong>0.90</strong></td></tr>
 <tr><td class="mono">a <span class="tr-zero">0.03</span></td><td><span class="rbadge rc">C</span></td><td class="mono l">next[&quot;a&quot;].p_nb += 0.03 × (1.00 + 0.00) = <strong>0.03</strong></td></tr>
 <tr><td class="mono">t <span class="tr-zero">0.02</span></td><td><span class="rbadge rc">C</span></td><td class="mono l">next[&quot;t&quot;].p_nb += 0.02 × (1.00 + 0.00) = <strong>0.02</strong></td></tr>
-</table>
+</table></div>
 <div class="tr-arrow">↓ top_k(next, p_b + p_nb, 3)</div>
-<table class="tbl">
+<div class="scrollx"><table class="tbl">
 <tr><th>순위</th><th class="mono">접두사</th><th class="mono">p_b</th><th class="mono">p_nb</th><th class="mono">합</th></tr>
 <tr><td>1</td><td class="mono hl">&quot;c&quot;</td><td class="mono">0.00</td><td class="mono">0.90</td><td class="mono">0.90</td></tr>
 <tr><td>2</td><td class="mono">&quot;&quot;</td><td class="mono">0.05</td><td class="mono">0.00</td><td class="mono">0.05</td></tr>
 <tr><td>3</td><td class="mono">&quot;a&quot;</td><td class="mono">0.00</td><td class="mono">0.03</td><td class="mono">0.03</td></tr>
-</table>
+</table></div>
 <div class="tr-cutline">✂️ 버림 — &quot;t&quot; 0.02</div>
 </div>
 
 <div class="tr-frame">
 <div class="tr-head"><span class="tr-t">t = 1</span><span class="tr-dist">_ 0.35 · c 0.60 · a 0.03 · t 0.02</span></div>
 <p class="tr-why">첫 B 규칙이 등장합니다. <code>"c"</code> 뒤에 또 <code>c</code>가 올 때 병합 쪽(<code>"c"</code>의 <code>p_nb</code>)은 0.54를 받지만, 확장 쪽 <code>"cc"</code>는 <code>0.60 × p_b("c") = 0.60 × 0 = 0</code>입니다. <code>"c"</code>는 아직 blank로 끝난 적이 없으니 <code>cc</code>를 만들 길 자체가 없습니다 — 확률을 둘로 나눠 든 대가를 여기서 처음 회수합니다.</p>
-<table class="tbl">
+<div class="scrollx"><table class="tbl">
 <tr><th>빔</th><th class="mono">ch</th><th>규칙</th><th class="l">갱신</th></tr>
-<tr><td class="beamcell" rowspan="4">&quot;c&quot;<small>p_b 0.00 · p_nb 0.90</small></td><td class="mono">_ <span class="tr-zero">0.35</span></td><td><span class="rbadge ra">A</span></td><td class="mono l">next[&quot;c&quot;].p_b += 0.35 × (0.00 + 0.90) = <strong>0.315</strong></td></tr>
+<tr><td class="beamcell" rowspan="4">&quot;c&quot;<small><span class="pp">p_b 0.00</span> · <span class="pp">p_nb 0.90</span></small></td><td class="mono">_ <span class="tr-zero">0.35</span></td><td><span class="rbadge ra">A</span></td><td class="mono l">next[&quot;c&quot;].p_b += 0.35 × (0.00 + 0.90) = <strong>0.315</strong></td></tr>
 <tr><td class="mono">c <span class="tr-zero">0.60</span></td><td><span class="rbadge rb">B</span></td><td class="mono l">next[&quot;c&quot;].p_nb += 0.60 × 0.90 = <strong>0.54</strong><br>next[&quot;cc&quot;].p_nb += 0.60 × 0.00 = <strong>0.00</strong> <span class="tr-zero">(← p_b가 0이라 확장 불가)</span></td></tr>
 <tr><td class="mono">a <span class="tr-zero">0.03</span></td><td><span class="rbadge rc">C</span></td><td class="mono l">next[&quot;ca&quot;].p_nb += 0.03 × (0.00 + 0.90) = <strong>0.027</strong></td></tr>
 <tr><td class="mono">t <span class="tr-zero">0.02</span></td><td><span class="rbadge rc">C</span></td><td class="mono l">next[&quot;ct&quot;].p_nb += 0.02 × (0.00 + 0.90) = <strong>0.018</strong></td></tr>
-<tr><td class="beamcell" rowspan="4">&quot;&quot;<small>p_b 0.05 · p_nb 0.00</small></td><td class="mono">_ <span class="tr-zero">0.35</span></td><td><span class="rbadge ra">A</span></td><td class="mono l">next[&quot;&quot;].p_b += 0.35 × (0.05 + 0.00) = <strong>0.0175</strong></td></tr>
+<tr><td class="beamcell" rowspan="4">&quot;&quot;<small><span class="pp">p_b 0.05</span> · <span class="pp">p_nb 0.00</span></small></td><td class="mono">_ <span class="tr-zero">0.35</span></td><td><span class="rbadge ra">A</span></td><td class="mono l">next[&quot;&quot;].p_b += 0.35 × (0.05 + 0.00) = <strong>0.0175</strong></td></tr>
 <tr><td class="mono">c <span class="tr-zero">0.60</span></td><td><span class="rbadge rc">C</span></td><td class="mono l">next[&quot;c&quot;].p_nb += 0.60 × (0.05 + 0.00) = <strong>0.03</strong></td></tr>
 <tr><td class="mono">a <span class="tr-zero">0.03</span></td><td><span class="rbadge rc">C</span></td><td class="mono l">next[&quot;a&quot;].p_nb += 0.03 × (0.05 + 0.00) = <strong>0.0015</strong></td></tr>
 <tr><td class="mono">t <span class="tr-zero">0.02</span></td><td><span class="rbadge rc">C</span></td><td class="mono l">next[&quot;t&quot;].p_nb += 0.02 × (0.05 + 0.00) = <strong>0.001</strong></td></tr>
-<tr><td class="beamcell" rowspan="4">&quot;a&quot;<small>p_b 0.00 · p_nb 0.03</small></td><td class="mono">_ <span class="tr-zero">0.35</span></td><td><span class="rbadge ra">A</span></td><td class="mono l">next[&quot;a&quot;].p_b += 0.35 × (0.00 + 0.03) = <strong>0.0105</strong></td></tr>
+<tr><td class="beamcell" rowspan="4">&quot;a&quot;<small><span class="pp">p_b 0.00</span> · <span class="pp">p_nb 0.03</span></small></td><td class="mono">_ <span class="tr-zero">0.35</span></td><td><span class="rbadge ra">A</span></td><td class="mono l">next[&quot;a&quot;].p_b += 0.35 × (0.00 + 0.03) = <strong>0.0105</strong></td></tr>
 <tr><td class="mono">c <span class="tr-zero">0.60</span></td><td><span class="rbadge rc">C</span></td><td class="mono l">next[&quot;ac&quot;].p_nb += 0.60 × (0.00 + 0.03) = <strong>0.018</strong></td></tr>
 <tr><td class="mono">a <span class="tr-zero">0.03</span></td><td><span class="rbadge rb">B</span></td><td class="mono l">next[&quot;a&quot;].p_nb += 0.03 × 0.03 = <strong>0.0009</strong><br>next[&quot;aa&quot;].p_nb += 0.03 × 0.00 = <strong>0.00</strong> <span class="tr-zero">(← p_b가 0이라 확장 불가)</span></td></tr>
 <tr><td class="mono">t <span class="tr-zero">0.02</span></td><td><span class="rbadge rc">C</span></td><td class="mono l">next[&quot;at&quot;].p_nb += 0.02 × (0.00 + 0.03) = <strong>0.0006</strong></td></tr>
-</table>
+</table></div>
 <div class="tr-arrow">↓ top_k(next, p_b + p_nb, 3)</div>
-<table class="tbl">
+<div class="scrollx"><table class="tbl">
 <tr><th>순위</th><th class="mono">접두사</th><th class="mono">p_b</th><th class="mono">p_nb</th><th class="mono">합</th></tr>
 <tr><td>1</td><td class="mono hl">&quot;c&quot;</td><td class="mono">0.315</td><td class="mono">0.57</td><td class="mono">0.885</td></tr>
 <tr><td>2</td><td class="mono">&quot;ca&quot;</td><td class="mono">0.00</td><td class="mono">0.027</td><td class="mono">0.027</td></tr>
 <tr><td>3</td><td class="mono">&quot;ct&quot;</td><td class="mono">0.00</td><td class="mono">0.018</td><td class="mono">0.018</td></tr>
-</table>
+</table></div>
 <div class="tr-cutline">✂️ 버림 — &quot;ac&quot; 0.018 · &quot;&quot; 0.0175 · &quot;a&quot; 0.0129 · &quot;t&quot; 0.001 · &quot;at&quot; 0.0006 · &quot;cc&quot; 0.00 · &quot;aa&quot; 0.00</div>
 </div>
 
 <div class="tr-frame">
 <div class="tr-head"><span class="tr-t">t = 2</span><span class="tr-dist">_ 0.45 · c 0.05 · a 0.40 · t 0.10</span></div>
 <p class="tr-why">§3에서 greedy가 무너지는 바로 그 프레임입니다. <code>_</code>(0.45)가 <code>a</code>(0.40)보다 높아 greedy는 <code>a</code>를 통째로 버리지만, 빔은 C 규칙 한 줄(<code>0.40 × 0.885</code>)로 <code>"ca"</code>를 0.37695까지 키워 2위로 들고 갑니다. 1위 <code>"c"</code>(0.42675)와 거의 붙었습니다.</p>
-<table class="tbl">
+<div class="scrollx"><table class="tbl">
 <tr><th>빔</th><th class="mono">ch</th><th>규칙</th><th class="l">갱신</th></tr>
-<tr><td class="beamcell" rowspan="4">&quot;c&quot;<small>p_b 0.315 · p_nb 0.57</small></td><td class="mono">_ <span class="tr-zero">0.45</span></td><td><span class="rbadge ra">A</span></td><td class="mono l">next[&quot;c&quot;].p_b += 0.45 × (0.315 + 0.57) = <strong>0.39825</strong></td></tr>
+<tr><td class="beamcell" rowspan="4">&quot;c&quot;<small><span class="pp">p_b 0.315</span> · <span class="pp">p_nb 0.57</span></small></td><td class="mono">_ <span class="tr-zero">0.45</span></td><td><span class="rbadge ra">A</span></td><td class="mono l">next[&quot;c&quot;].p_b += 0.45 × (0.315 + 0.57) = <strong>0.39825</strong></td></tr>
 <tr><td class="mono">c <span class="tr-zero">0.05</span></td><td><span class="rbadge rb">B</span></td><td class="mono l">next[&quot;c&quot;].p_nb += 0.05 × 0.57 = <strong>0.0285</strong><br>next[&quot;cc&quot;].p_nb += 0.05 × 0.315 = <strong>0.01575</strong></td></tr>
 <tr><td class="mono">a <span class="tr-zero">0.40</span></td><td><span class="rbadge rc">C</span></td><td class="mono l">next[&quot;ca&quot;].p_nb += 0.40 × (0.315 + 0.57) = <strong>0.354</strong></td></tr>
 <tr><td class="mono">t <span class="tr-zero">0.10</span></td><td><span class="rbadge rc">C</span></td><td class="mono l">next[&quot;ct&quot;].p_nb += 0.10 × (0.315 + 0.57) = <strong>0.0885</strong></td></tr>
-<tr><td class="beamcell" rowspan="4">&quot;ca&quot;<small>p_b 0.00 · p_nb 0.027</small></td><td class="mono">_ <span class="tr-zero">0.45</span></td><td><span class="rbadge ra">A</span></td><td class="mono l">next[&quot;ca&quot;].p_b += 0.45 × (0.00 + 0.027) = <strong>0.01215</strong></td></tr>
+<tr><td class="beamcell" rowspan="4">&quot;ca&quot;<small><span class="pp">p_b 0.00</span> · <span class="pp">p_nb 0.027</span></small></td><td class="mono">_ <span class="tr-zero">0.45</span></td><td><span class="rbadge ra">A</span></td><td class="mono l">next[&quot;ca&quot;].p_b += 0.45 × (0.00 + 0.027) = <strong>0.01215</strong></td></tr>
 <tr><td class="mono">c <span class="tr-zero">0.05</span></td><td><span class="rbadge rc">C</span></td><td class="mono l">next[&quot;cac&quot;].p_nb += 0.05 × (0.00 + 0.027) = <strong>0.00135</strong></td></tr>
 <tr><td class="mono">a <span class="tr-zero">0.40</span></td><td><span class="rbadge rb">B</span></td><td class="mono l">next[&quot;ca&quot;].p_nb += 0.40 × 0.027 = <strong>0.0108</strong><br>next[&quot;caa&quot;].p_nb += 0.40 × 0.00 = <strong>0.00</strong> <span class="tr-zero">(← p_b가 0이라 확장 불가)</span></td></tr>
 <tr><td class="mono">t <span class="tr-zero">0.10</span></td><td><span class="rbadge rc">C</span></td><td class="mono l">next[&quot;cat&quot;].p_nb += 0.10 × (0.00 + 0.027) = <strong>0.0027</strong></td></tr>
-<tr><td class="beamcell" rowspan="4">&quot;ct&quot;<small>p_b 0.00 · p_nb 0.018</small></td><td class="mono">_ <span class="tr-zero">0.45</span></td><td><span class="rbadge ra">A</span></td><td class="mono l">next[&quot;ct&quot;].p_b += 0.45 × (0.00 + 0.018) = <strong>0.0081</strong></td></tr>
+<tr><td class="beamcell" rowspan="4">&quot;ct&quot;<small><span class="pp">p_b 0.00</span> · <span class="pp">p_nb 0.018</span></small></td><td class="mono">_ <span class="tr-zero">0.45</span></td><td><span class="rbadge ra">A</span></td><td class="mono l">next[&quot;ct&quot;].p_b += 0.45 × (0.00 + 0.018) = <strong>0.0081</strong></td></tr>
 <tr><td class="mono">c <span class="tr-zero">0.05</span></td><td><span class="rbadge rc">C</span></td><td class="mono l">next[&quot;ctc&quot;].p_nb += 0.05 × (0.00 + 0.018) = <strong>0.0009</strong></td></tr>
 <tr><td class="mono">a <span class="tr-zero">0.40</span></td><td><span class="rbadge rc">C</span></td><td class="mono l">next[&quot;cta&quot;].p_nb += 0.40 × (0.00 + 0.018) = <strong>0.0072</strong></td></tr>
 <tr><td class="mono">t <span class="tr-zero">0.10</span></td><td><span class="rbadge rb">B</span></td><td class="mono l">next[&quot;ct&quot;].p_nb += 0.10 × 0.018 = <strong>0.0018</strong><br>next[&quot;ctt&quot;].p_nb += 0.10 × 0.00 = <strong>0.00</strong> <span class="tr-zero">(← p_b가 0이라 확장 불가)</span></td></tr>
-</table>
+</table></div>
 <div class="tr-arrow">↓ top_k(next, p_b + p_nb, 3)</div>
-<table class="tbl">
+<div class="scrollx"><table class="tbl">
 <tr><th>순위</th><th class="mono">접두사</th><th class="mono">p_b</th><th class="mono">p_nb</th><th class="mono">합</th></tr>
 <tr><td>1</td><td class="mono hl">&quot;c&quot;</td><td class="mono">0.39825</td><td class="mono">0.0285</td><td class="mono">0.42675</td></tr>
 <tr><td>2</td><td class="mono">&quot;ca&quot;</td><td class="mono">0.01215</td><td class="mono">0.3648</td><td class="mono">0.37695</td></tr>
 <tr><td>3</td><td class="mono">&quot;ct&quot;</td><td class="mono">0.0081</td><td class="mono">0.0903</td><td class="mono">0.0984</td></tr>
-</table>
+</table></div>
 <div class="tr-cutline">✂️ 버림 — &quot;cc&quot; 0.01575 · &quot;cta&quot; 0.0072 · &quot;cat&quot; 0.0027 · &quot;cac&quot; 0.00135 · &quot;ctc&quot; 0.0009 · &quot;caa&quot; 0.00 · &quot;ctt&quot; 0.00</div>
 </div>
 
 <div class="tr-frame">
 <div class="tr-head"><span class="tr-t">t = 3</span><span class="tr-dist">_ 0.45 · c 0.05 · a 0.40 · t 0.10</span></div>
 <p class="tr-why">순위가 뒤집히는 프레임. <code>"ca"</code>가 <strong>세 곳에서 동시에</strong> 확률을 받는 것을 보세요. A로 <code>p_b</code> 0.169628(<code>a</code>가 t=2에만 있던 정렬들), C로 0.1707(<code>a</code>가 t=3에만), B의 병합으로 0.14592(t=2·t=3 둘 다). 합 0.486248로 <code>"c"</code>(0.193463)를 앞지릅니다. §3의 “흩어진 확률 질량을 모은다”가 정확히 이 세 줄입니다.</p>
-<table class="tbl">
+<div class="scrollx"><table class="tbl">
 <tr><th>빔</th><th class="mono">ch</th><th>규칙</th><th class="l">갱신</th></tr>
-<tr><td class="beamcell" rowspan="4">&quot;c&quot;<small>p_b 0.39825 · p_nb 0.0285</small></td><td class="mono">_ <span class="tr-zero">0.45</span></td><td><span class="rbadge ra">A</span></td><td class="mono l">next[&quot;c&quot;].p_b += 0.45 × (0.39825 + 0.0285) = <strong>0.192037</strong></td></tr>
+<tr><td class="beamcell" rowspan="4">&quot;c&quot;<small><span class="pp">p_b 0.39825</span> · <span class="pp">p_nb 0.0285</span></small></td><td class="mono">_ <span class="tr-zero">0.45</span></td><td><span class="rbadge ra">A</span></td><td class="mono l">next[&quot;c&quot;].p_b += 0.45 × (0.39825 + 0.0285) = <strong>0.192037</strong></td></tr>
 <tr><td class="mono">c <span class="tr-zero">0.05</span></td><td><span class="rbadge rb">B</span></td><td class="mono l">next[&quot;c&quot;].p_nb += 0.05 × 0.0285 = <strong>0.001425</strong><br>next[&quot;cc&quot;].p_nb += 0.05 × 0.39825 = <strong>0.019912</strong></td></tr>
 <tr><td class="mono">a <span class="tr-zero">0.40</span></td><td><span class="rbadge rc">C</span></td><td class="mono l">next[&quot;ca&quot;].p_nb += 0.40 × (0.39825 + 0.0285) = <strong>0.1707</strong></td></tr>
 <tr><td class="mono">t <span class="tr-zero">0.10</span></td><td><span class="rbadge rc">C</span></td><td class="mono l">next[&quot;ct&quot;].p_nb += 0.10 × (0.39825 + 0.0285) = <strong>0.042675</strong></td></tr>
-<tr><td class="beamcell" rowspan="4">&quot;ca&quot;<small>p_b 0.01215 · p_nb 0.3648</small></td><td class="mono">_ <span class="tr-zero">0.45</span></td><td><span class="rbadge ra">A</span></td><td class="mono l">next[&quot;ca&quot;].p_b += 0.45 × (0.01215 + 0.3648) = <strong>0.169628</strong></td></tr>
+<tr><td class="beamcell" rowspan="4">&quot;ca&quot;<small><span class="pp">p_b 0.01215</span> · <span class="pp">p_nb 0.3648</span></small></td><td class="mono">_ <span class="tr-zero">0.45</span></td><td><span class="rbadge ra">A</span></td><td class="mono l">next[&quot;ca&quot;].p_b += 0.45 × (0.01215 + 0.3648) = <strong>0.169628</strong></td></tr>
 <tr><td class="mono">c <span class="tr-zero">0.05</span></td><td><span class="rbadge rc">C</span></td><td class="mono l">next[&quot;cac&quot;].p_nb += 0.05 × (0.01215 + 0.3648) = <strong>0.018848</strong></td></tr>
 <tr><td class="mono">a <span class="tr-zero">0.40</span></td><td><span class="rbadge rb">B</span></td><td class="mono l">next[&quot;ca&quot;].p_nb += 0.40 × 0.3648 = <strong>0.14592</strong><br>next[&quot;caa&quot;].p_nb += 0.40 × 0.01215 = <strong>0.00486</strong></td></tr>
 <tr><td class="mono">t <span class="tr-zero">0.10</span></td><td><span class="rbadge rc">C</span></td><td class="mono l">next[&quot;cat&quot;].p_nb += 0.10 × (0.01215 + 0.3648) = <strong>0.037695</strong></td></tr>
-<tr><td class="beamcell" rowspan="4">&quot;ct&quot;<small>p_b 0.0081 · p_nb 0.0903</small></td><td class="mono">_ <span class="tr-zero">0.45</span></td><td><span class="rbadge ra">A</span></td><td class="mono l">next[&quot;ct&quot;].p_b += 0.45 × (0.0081 + 0.0903) = <strong>0.04428</strong></td></tr>
+<tr><td class="beamcell" rowspan="4">&quot;ct&quot;<small><span class="pp">p_b 0.0081</span> · <span class="pp">p_nb 0.0903</span></small></td><td class="mono">_ <span class="tr-zero">0.45</span></td><td><span class="rbadge ra">A</span></td><td class="mono l">next[&quot;ct&quot;].p_b += 0.45 × (0.0081 + 0.0903) = <strong>0.04428</strong></td></tr>
 <tr><td class="mono">c <span class="tr-zero">0.05</span></td><td><span class="rbadge rc">C</span></td><td class="mono l">next[&quot;ctc&quot;].p_nb += 0.05 × (0.0081 + 0.0903) = <strong>0.00492</strong></td></tr>
 <tr><td class="mono">a <span class="tr-zero">0.40</span></td><td><span class="rbadge rc">C</span></td><td class="mono l">next[&quot;cta&quot;].p_nb += 0.40 × (0.0081 + 0.0903) = <strong>0.03936</strong></td></tr>
 <tr><td class="mono">t <span class="tr-zero">0.10</span></td><td><span class="rbadge rb">B</span></td><td class="mono l">next[&quot;ct&quot;].p_nb += 0.10 × 0.0903 = <strong>0.00903</strong><br>next[&quot;ctt&quot;].p_nb += 0.10 × 0.0081 = <strong>0.00081</strong></td></tr>
-</table>
+</table></div>
 <div class="tr-arrow">↓ top_k(next, p_b + p_nb, 3)</div>
-<table class="tbl">
+<div class="scrollx"><table class="tbl">
 <tr><th>순위</th><th class="mono">접두사</th><th class="mono">p_b</th><th class="mono">p_nb</th><th class="mono">합</th></tr>
 <tr><td>1</td><td class="mono hl">&quot;ca&quot;</td><td class="mono">0.169628</td><td class="mono">0.31662</td><td class="mono">0.486248</td></tr>
 <tr><td>2</td><td class="mono">&quot;c&quot;</td><td class="mono">0.192037</td><td class="mono">0.001425</td><td class="mono">0.193463</td></tr>
 <tr><td>3</td><td class="mono">&quot;ct&quot;</td><td class="mono">0.04428</td><td class="mono">0.051705</td><td class="mono">0.095985</td></tr>
-</table>
+</table></div>
 <div class="tr-cutline">✂️ 버림 — &quot;cta&quot; 0.03936 · &quot;cat&quot; 0.037695 · &quot;cc&quot; 0.019912 · &quot;cac&quot; 0.018848 · &quot;ctc&quot; 0.00492 · &quot;caa&quot; 0.00486 · &quot;ctt&quot; 0.00081</div>
 </div>
 
 <div class="tr-frame">
 <div class="tr-head"><span class="tr-t">t = 4</span><span class="tr-dist">_ 0.15 · c 0.02 · a 0.03 · t 0.80</span></div>
 <p class="tr-why"><code>t</code>가 0.80으로 솟습니다. C 규칙 한 줄(<code>0.80 × 0.486248</code>)로 <code>"cat"</code>이 태어나자마자 1위가 됩니다. 반대로 네 프레임 내내 1위 아니면 2위였던 <code>"c"</code>는 0.029048로 밀려 여기서 잘립니다 — 빔은 선두를 지켜 주지 않습니다.</p>
-<table class="tbl">
+<div class="scrollx"><table class="tbl">
 <tr><th>빔</th><th class="mono">ch</th><th>규칙</th><th class="l">갱신</th></tr>
-<tr><td class="beamcell" rowspan="4">&quot;ca&quot;<small>p_b 0.169628 · p_nb 0.31662</small></td><td class="mono">_ <span class="tr-zero">0.15</span></td><td><span class="rbadge ra">A</span></td><td class="mono l">next[&quot;ca&quot;].p_b += 0.15 × (0.169628 + 0.31662) = <strong>0.072937</strong></td></tr>
+<tr><td class="beamcell" rowspan="4">&quot;ca&quot;<small><span class="pp">p_b 0.169628</span> · <span class="pp">p_nb 0.31662</span></small></td><td class="mono">_ <span class="tr-zero">0.15</span></td><td><span class="rbadge ra">A</span></td><td class="mono l">next[&quot;ca&quot;].p_b += 0.15 × (0.169628 + 0.31662) = <strong>0.072937</strong></td></tr>
 <tr><td class="mono">c <span class="tr-zero">0.02</span></td><td><span class="rbadge rc">C</span></td><td class="mono l">next[&quot;cac&quot;].p_nb += 0.02 × (0.169628 + 0.31662) = <strong>0.009725</strong></td></tr>
 <tr><td class="mono">a <span class="tr-zero">0.03</span></td><td><span class="rbadge rb">B</span></td><td class="mono l">next[&quot;ca&quot;].p_nb += 0.03 × 0.31662 = <strong>0.009499</strong><br>next[&quot;caa&quot;].p_nb += 0.03 × 0.169628 = <strong>0.005089</strong></td></tr>
 <tr><td class="mono">t <span class="tr-zero">0.80</span></td><td><span class="rbadge rc">C</span></td><td class="mono l">next[&quot;cat&quot;].p_nb += 0.80 × (0.169628 + 0.31662) = <strong>0.388998</strong></td></tr>
-<tr><td class="beamcell" rowspan="4">&quot;c&quot;<small>p_b 0.192037 · p_nb 0.001425</small></td><td class="mono">_ <span class="tr-zero">0.15</span></td><td><span class="rbadge ra">A</span></td><td class="mono l">next[&quot;c&quot;].p_b += 0.15 × (0.192037 + 0.001425) = <strong>0.029019</strong></td></tr>
+<tr><td class="beamcell" rowspan="4">&quot;c&quot;<small><span class="pp">p_b 0.192037</span> · <span class="pp">p_nb 0.001425</span></small></td><td class="mono">_ <span class="tr-zero">0.15</span></td><td><span class="rbadge ra">A</span></td><td class="mono l">next[&quot;c&quot;].p_b += 0.15 × (0.192037 + 0.001425) = <strong>0.029019</strong></td></tr>
 <tr><td class="mono">c <span class="tr-zero">0.02</span></td><td><span class="rbadge rb">B</span></td><td class="mono l">next[&quot;c&quot;].p_nb += 0.02 × 0.001425 = <strong>0.000029</strong><br>next[&quot;cc&quot;].p_nb += 0.02 × 0.192037 = <strong>0.003841</strong></td></tr>
 <tr><td class="mono">a <span class="tr-zero">0.03</span></td><td><span class="rbadge rc">C</span></td><td class="mono l">next[&quot;ca&quot;].p_nb += 0.03 × (0.192037 + 0.001425) = <strong>0.005804</strong></td></tr>
 <tr><td class="mono">t <span class="tr-zero">0.80</span></td><td><span class="rbadge rc">C</span></td><td class="mono l">next[&quot;ct&quot;].p_nb += 0.80 × (0.192037 + 0.001425) = <strong>0.15477</strong></td></tr>
-<tr><td class="beamcell" rowspan="4">&quot;ct&quot;<small>p_b 0.04428 · p_nb 0.051705</small></td><td class="mono">_ <span class="tr-zero">0.15</span></td><td><span class="rbadge ra">A</span></td><td class="mono l">next[&quot;ct&quot;].p_b += 0.15 × (0.04428 + 0.051705) = <strong>0.014398</strong></td></tr>
+<tr><td class="beamcell" rowspan="4">&quot;ct&quot;<small><span class="pp">p_b 0.04428</span> · <span class="pp">p_nb 0.051705</span></small></td><td class="mono">_ <span class="tr-zero">0.15</span></td><td><span class="rbadge ra">A</span></td><td class="mono l">next[&quot;ct&quot;].p_b += 0.15 × (0.04428 + 0.051705) = <strong>0.014398</strong></td></tr>
 <tr><td class="mono">c <span class="tr-zero">0.02</span></td><td><span class="rbadge rc">C</span></td><td class="mono l">next[&quot;ctc&quot;].p_nb += 0.02 × (0.04428 + 0.051705) = <strong>0.00192</strong></td></tr>
 <tr><td class="mono">a <span class="tr-zero">0.03</span></td><td><span class="rbadge rc">C</span></td><td class="mono l">next[&quot;cta&quot;].p_nb += 0.03 × (0.04428 + 0.051705) = <strong>0.00288</strong></td></tr>
 <tr><td class="mono">t <span class="tr-zero">0.80</span></td><td><span class="rbadge rb">B</span></td><td class="mono l">next[&quot;ct&quot;].p_nb += 0.80 × 0.051705 = <strong>0.041364</strong><br>next[&quot;ctt&quot;].p_nb += 0.80 × 0.04428 = <strong>0.035424</strong></td></tr>
-</table>
+</table></div>
 <div class="tr-arrow">↓ top_k(next, p_b + p_nb, 3)</div>
-<table class="tbl">
+<div class="scrollx"><table class="tbl">
 <tr><th>순위</th><th class="mono">접두사</th><th class="mono">p_b</th><th class="mono">p_nb</th><th class="mono">합</th></tr>
 <tr><td>1</td><td class="mono hl">&quot;cat&quot;</td><td class="mono">0.00</td><td class="mono">0.388998</td><td class="mono">0.388998</td></tr>
 <tr><td>2</td><td class="mono">&quot;ct&quot;</td><td class="mono">0.014398</td><td class="mono">0.196134</td><td class="mono">0.210532</td></tr>
 <tr><td>3</td><td class="mono">&quot;ca&quot;</td><td class="mono">0.072937</td><td class="mono">0.015302</td><td class="mono">0.08824</td></tr>
-</table>
+</table></div>
 <div class="tr-cutline">✂️ 버림 — &quot;ctt&quot; 0.035424 · &quot;c&quot; 0.029048 · &quot;cac&quot; 0.009725 · &quot;caa&quot; 0.005089 · &quot;cc&quot; 0.003841 · &quot;cta&quot; 0.00288 · &quot;ctc&quot; 0.00192</div>
 </div>
 
 <div class="tr-frame">
 <div class="tr-head"><span class="tr-t">t = 5</span><span class="tr-dist">_ 0.70 · c 0.02 · a 0.03 · t 0.25</span></div>
 <p class="tr-why">마지막 프레임은 blank가 0.70이라 A 규칙이 주도합니다. <code>"cat"</code>은 <code>p_nb</code> 0.388998을 A로 <code>p_b</code> 0.272299에 옮겨 담고, 살아남은 <code>"ca"</code>도 C로 0.02206을 <code>"cat"</code>에 보탭니다. <code>"catt"</code>가 또 0인 이유는 t=1의 <code>"cc"</code>와 같습니다.</p>
-<table class="tbl">
+<div class="scrollx"><table class="tbl">
 <tr><th>빔</th><th class="mono">ch</th><th>규칙</th><th class="l">갱신</th></tr>
-<tr><td class="beamcell" rowspan="4">&quot;cat&quot;<small>p_b 0.00 · p_nb 0.388998</small></td><td class="mono">_ <span class="tr-zero">0.70</span></td><td><span class="rbadge ra">A</span></td><td class="mono l">next[&quot;cat&quot;].p_b += 0.70 × (0.00 + 0.388998) = <strong>0.272299</strong></td></tr>
+<tr><td class="beamcell" rowspan="4">&quot;cat&quot;<small><span class="pp">p_b 0.00</span> · <span class="pp">p_nb 0.388998</span></small></td><td class="mono">_ <span class="tr-zero">0.70</span></td><td><span class="rbadge ra">A</span></td><td class="mono l">next[&quot;cat&quot;].p_b += 0.70 × (0.00 + 0.388998) = <strong>0.272299</strong></td></tr>
 <tr><td class="mono">c <span class="tr-zero">0.02</span></td><td><span class="rbadge rc">C</span></td><td class="mono l">next[&quot;catc&quot;].p_nb += 0.02 × (0.00 + 0.388998) = <strong>0.00778</strong></td></tr>
 <tr><td class="mono">a <span class="tr-zero">0.03</span></td><td><span class="rbadge rc">C</span></td><td class="mono l">next[&quot;cata&quot;].p_nb += 0.03 × (0.00 + 0.388998) = <strong>0.01167</strong></td></tr>
 <tr><td class="mono">t <span class="tr-zero">0.25</span></td><td><span class="rbadge rb">B</span></td><td class="mono l">next[&quot;cat&quot;].p_nb += 0.25 × 0.388998 = <strong>0.09725</strong><br>next[&quot;catt&quot;].p_nb += 0.25 × 0.00 = <strong>0.00</strong> <span class="tr-zero">(← p_b가 0이라 확장 불가)</span></td></tr>
-<tr><td class="beamcell" rowspan="4">&quot;ct&quot;<small>p_b 0.014398 · p_nb 0.196134</small></td><td class="mono">_ <span class="tr-zero">0.70</span></td><td><span class="rbadge ra">A</span></td><td class="mono l">next[&quot;ct&quot;].p_b += 0.70 × (0.014398 + 0.196134) = <strong>0.147372</strong></td></tr>
+<tr><td class="beamcell" rowspan="4">&quot;ct&quot;<small><span class="pp">p_b 0.014398</span> · <span class="pp">p_nb 0.196134</span></small></td><td class="mono">_ <span class="tr-zero">0.70</span></td><td><span class="rbadge ra">A</span></td><td class="mono l">next[&quot;ct&quot;].p_b += 0.70 × (0.014398 + 0.196134) = <strong>0.147372</strong></td></tr>
 <tr><td class="mono">c <span class="tr-zero">0.02</span></td><td><span class="rbadge rc">C</span></td><td class="mono l">next[&quot;ctc&quot;].p_nb += 0.02 × (0.014398 + 0.196134) = <strong>0.004211</strong></td></tr>
 <tr><td class="mono">a <span class="tr-zero">0.03</span></td><td><span class="rbadge rc">C</span></td><td class="mono l">next[&quot;cta&quot;].p_nb += 0.03 × (0.014398 + 0.196134) = <strong>0.006316</strong></td></tr>
 <tr><td class="mono">t <span class="tr-zero">0.25</span></td><td><span class="rbadge rb">B</span></td><td class="mono l">next[&quot;ct&quot;].p_nb += 0.25 × 0.196134 = <strong>0.049034</strong><br>next[&quot;ctt&quot;].p_nb += 0.25 × 0.014398 = <strong>0.003599</strong></td></tr>
-<tr><td class="beamcell" rowspan="4">&quot;ca&quot;<small>p_b 0.072937 · p_nb 0.015302</small></td><td class="mono">_ <span class="tr-zero">0.70</span></td><td><span class="rbadge ra">A</span></td><td class="mono l">next[&quot;ca&quot;].p_b += 0.70 × (0.072937 + 0.015302) = <strong>0.061768</strong></td></tr>
+<tr><td class="beamcell" rowspan="4">&quot;ca&quot;<small><span class="pp">p_b 0.072937</span> · <span class="pp">p_nb 0.015302</span></small></td><td class="mono">_ <span class="tr-zero">0.70</span></td><td><span class="rbadge ra">A</span></td><td class="mono l">next[&quot;ca&quot;].p_b += 0.70 × (0.072937 + 0.015302) = <strong>0.061768</strong></td></tr>
 <tr><td class="mono">c <span class="tr-zero">0.02</span></td><td><span class="rbadge rc">C</span></td><td class="mono l">next[&quot;cac&quot;].p_nb += 0.02 × (0.072937 + 0.015302) = <strong>0.001765</strong></td></tr>
 <tr><td class="mono">a <span class="tr-zero">0.03</span></td><td><span class="rbadge rb">B</span></td><td class="mono l">next[&quot;ca&quot;].p_nb += 0.03 × 0.015302 = <strong>0.000459</strong><br>next[&quot;caa&quot;].p_nb += 0.03 × 0.072937 = <strong>0.002188</strong></td></tr>
 <tr><td class="mono">t <span class="tr-zero">0.25</span></td><td><span class="rbadge rc">C</span></td><td class="mono l">next[&quot;cat&quot;].p_nb += 0.25 × (0.072937 + 0.015302) = <strong>0.02206</strong></td></tr>
-</table>
+</table></div>
 <div class="tr-arrow">↓ top_k(next, p_b + p_nb, 3)</div>
-<table class="tbl">
+<div class="scrollx"><table class="tbl">
 <tr><th>순위</th><th class="mono">접두사</th><th class="mono">p_b</th><th class="mono">p_nb</th><th class="mono">합</th></tr>
 <tr><td>1</td><td class="mono hl">&quot;cat&quot;</td><td class="mono">0.272299</td><td class="mono">0.119309</td><td class="mono">0.391608</td></tr>
 <tr><td>2</td><td class="mono">&quot;ct&quot;</td><td class="mono">0.147372</td><td class="mono">0.049034</td><td class="mono">0.196406</td></tr>
 <tr><td>3</td><td class="mono">&quot;ca&quot;</td><td class="mono">0.061768</td><td class="mono">0.000459</td><td class="mono">0.062227</td></tr>
-</table>
+</table></div>
 <div class="tr-cutline">✂️ 버림 — &quot;cata&quot; 0.01167 · &quot;catc&quot; 0.00778 · &quot;cta&quot; 0.006316 · &quot;ctc&quot; 0.004211 · &quot;ctt&quot; 0.003599 · &quot;caa&quot; 0.002188 · &quot;cac&quot; 0.001765 · &quot;catt&quot; 0.00</div>
 </div>
 
 
 <h3>여섯 프레임을 한 줄씩으로 줄이면</h3>
 
-<table class="tbl">
+<div class="scrollx"><table class="tbl">
   <tr><th class="mono">t</th><th class="mono">1위</th><th class="mono">합</th><th>그 프레임에서 일어난 일</th></tr>
   <tr><td class="mono">0</td><td class="mono">"c"</td><td class="mono">0.90</td><td>빈 접두사에서 C 규칙 셋이 갈라져 나옴. <code>"t"</code>는 여기서 이미 탈락</td></tr>
   <tr><td class="mono">1</td><td class="mono">"c"</td><td class="mono">0.885</td><td><code>"cc"</code>가 0으로 막힘 — <code>p_b</code>/<code>p_nb</code> 분리가 처음으로 일함</td></tr>
@@ -732,7 +743,7 @@ for t in range(T):
   <tr><td class="mono">3</td><td class="mono hl">"ca"</td><td class="mono">0.486248</td><td><strong>세 갈래로 흩어져 있던 확률이 합쳐지며 역전</strong></td></tr>
   <tr><td class="mono">4</td><td class="mono hl">"cat"</td><td class="mono">0.388998</td><td><code>t</code>=0.80으로 <code>"cat"</code> 탄생. 대신 <code>"c"</code>가 탈락</td></tr>
   <tr><td class="mono">5</td><td class="mono hl">"cat"</td><td class="mono">0.391608</td><td>blank 0.70을 A로 흡수하며 확정</td></tr>
-</table>
+</table></div>
 
 <p>
 최종 1위는 <code>"cat"</code>, 추정 확률 <strong>0.391608</strong>입니다.
@@ -1007,13 +1018,13 @@ and has a negligible effect on the CER (0.1-0.3% relative)."
 <div class="demo-title">데모 7 · Table 6 — 언어 모델의 효과</div>
 <div class="demo-sub">막대가 짧을수록 좋습니다. 순환층이 많아질수록 언어 모델의 <em>상대적</em> 기여가 줄어듭니다.</div>
 <div class="bars" id="d7bars"></div>
-<table class="tbl">
+<div class="scrollx"><table class="tbl">
   <tr><th>언어</th><th>구조</th><th>LM 없음</th><th>LM 있음</th><th>상대 개선</th></tr>
   <tr><td class="rowhead">영어 (WER)</td><td>5층, 순환 1</td><td>27.79</td><td>14.39</td><td class="hl">48.2%</td></tr>
   <tr><td class="rowhead">영어 (WER)</td><td>9층, 순환 7</td><td>14.93</td><td>9.52</td><td>36.2%</td></tr>
   <tr><td class="rowhead">중국어 (CER)</td><td>5층, 순환 1</td><td>9.80</td><td>7.13</td><td class="hl">27.2%</td></tr>
   <tr><td class="rowhead">중국어 (CER)</td><td>9층, 순환 7</td><td>7.55</td><td>5.81</td><td>23.1%</td></tr>
-</table>
+</table></div>
 </div>
 
 <p>
