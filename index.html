@@ -240,6 +240,12 @@ table.tbl tr.newbeam td { background: color-mix(in srgb, var(--s3) 12%, var(--su
 .toc { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px 22px; margin: 22px 0; font-size: .92rem; }
 .toc ol { margin: 6px 0 2px; padding-left: 20px; }
 .toc li { margin: 3px 0; }
+.toc-extra { margin: 10px 0 0; padding-top: 10px; border-top: 1px dashed var(--line); font-size: .9rem; }
+.toc-extra a { color: var(--accent-ink); }
+.fnref { display: inline-block; font-size: .78em; font-weight: 700; text-decoration: none; color: var(--accent-ink);
+  background: var(--accent-soft); border: 1px solid var(--accent); border-radius: 999px; padding: 0 8px; margin-left: 4px;
+  vertical-align: 1px; white-space: nowrap; }
+.fnback { margin-top: 22px; font-size: .88rem; }
 footer { margin-top: 70px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: .85rem; }
 </style>
 </head>
@@ -275,6 +281,7 @@ Deep Speech 2의 신경망은 문장을 출력하지 않습니다. <strong>프�
 <li><a href="#s9">정리 — 한 문장으로</a></li>
 <li><a href="#s10">이해도 퀴즈</a></li>
 </ol>
+<div class="toc-extra"><a href="#note-beam">부록 · 왜 하필 "빔"인가 — 1976년 HARPY, 그리고 원래 빔은 개수가 아니었다는 이야기</a></div>
 </div>
 
 <!-- ================================================================ -->
@@ -305,6 +312,17 @@ In English we have ℓ<sub>t</sub> ∈ {a, b, c, …, z, space, apostrophe, blan
 
 <!-- ================================================================ -->
 <h2 id="s2">§2 CTC 축약 규칙 — 여러 정렬이 한 문장이 된다</h2>
+
+<div class="note">
+<strong>CTC</strong>는 <strong>Connectionist Temporal Classification</strong>의 약자입니다 —
+<a href="https://www.cs.toronto.edu/~graves/icml_2006.pdf" target="_blank" rel="noopener">Graves et al., ICML 2006</a>.
+논문 제목이 <em>"Labelling Unsegmented Sequence Data"</em>인데, 여기 <strong>unsegmented</strong>가 핵심입니다.
+음성은 <strong>어느 프레임이 어느 글자인지 미리 잘라 두지 않은</strong> 데이터라
+"몇 번째 프레임 = 글자 c"라는 정답표를 만들 수가 없습니다.
+그래서 <strong>가능한 정렬을 전부 인정하고 그 확률을 합치는</strong> 쪽으로 우회한 것이 CTC이고,
+아래 축약 규칙과 <code>blank</code>가 그 우회의 장치입니다.
+이 글 전체가 결국 그 "합치기"를 디코딩에서 어떻게 해내느냐는 이야기입니다.
+</div>
 
 <p>
 프레임마다 기호를 하나씩 고른 것을 <strong>정렬(alignment)</strong>이라고 합니다.
@@ -808,6 +826,7 @@ for t in range(T):
 <p>
 빔 폭은 "매 프레임 상위 몇 개를 살려 둘 것인가"입니다. 넓을수록 정확하고 느립니다.
 장난감 예제에서 폭을 바꿔 가며 최종 결과를 보면 이렇습니다.
+<a class="fnref" id="fnref-beam" href="#note-beam">왜 하필 "빔"인가 ↓</a>
 </p>
 
 <div class="demo">
@@ -1079,6 +1098,65 @@ and has a negligible effect on the CER (0.1-0.3% relative)."
 <!-- ================================================================ -->
 <h2 id="s10">§10 이해도 퀴즈</h2>
 <div id="quizRoot"></div>
+
+<!-- ================================================================ -->
+<h2 id="note-beam">부록 · 왜 하필 "빔"인가</h2>
+
+<p>
+이 글에서 <strong>빔</strong>은 줄곧 "지금 살아남은 문장 후보 목록"이라는 뜻으로 썼습니다.
+그런데 후보 목록을 왜 하필 빛줄기에 빗댔을까요. 이름의 출처는 이 글과 같은 동네 — 음성 인식입니다.
+</p>
+
+<h3>1976년, HARPY</h3>
+
+<p>
+카네기멜런의 Bruce Lowerre가 박사논문에서 <strong>HARPY</strong> 음성 인식 시스템을 만들며 붙인 이름입니다.
+DARPA 음성 이해 연구(SUR) 프로그램 과제였고, 상태가 1만 5천 개쯤 되는 네트워크를 매 시점 훑어야 하는데
+전부 열어 볼 수는 없었습니다. 그래서 유망한 것만 남기고 나머지를 버리는 방식을 썼고,
+거기에 <strong>beam search</strong>라는 이름이 붙었습니다.
+</p>
+
+<h3>원래 "빔"은 개수가 아니라 점수 창이었다</h3>
+
+<p>
+여기가 이름이 납득되는 지점입니다. Lowerre의 원래 빔은 "상위 몇 개"가 아니었습니다.
+</p>
+
+<blockquote>이번 시점 1등 점수에서 일정 폭 안에 드는 후보는 <strong>전부</strong> 남긴다.</blockquote>
+
+<p>
+그러면 매 시점 살아남은 후보들의 점수가 1등 주변으로 <strong>띠</strong>를 이루고,
+그 띠가 시간축을 따라 훑고 지나갑니다. 손전등 빔이 어둠 속을 좁게 비추며 지나가는 모양이죠.
+<strong>"빔 폭(width)"이라는 말이 자연스러운 것도 그게 원래 진짜 폭 — 점수 창의 넓이였기 때문</strong>입니다.
+개수를 세는 거였다면 폭이 아니라 개수라고 불렀을 겁니다.
+</p>
+
+<h3>그래서 §4의 <code>top_k</code>는 엄밀히는 빔이 아니다</h3>
+
+<pre><code>beams = top_k(next, key=lambda s: s["pb"] + s["pnb"], k=beam_width)</code></pre>
+
+<p>
+이건 <strong>고정 폭(fixed-width) 변형</strong>입니다. 점수와 무관하게 무조건 상위 N개만 남기죠.
+구현이 간단하고 메모리 상한이 보장돼서 지금은 이쪽이 사실상 표준이 됐고,
+<a href="#s5">§5</a>의 500 / 200도 이 방식입니다.
+</p>
+
+<p>
+다만 실전 ASR 디코더는 아직 둘 다 들고 있습니다. 예를 들어 Kaldi는
+<code>--beam</code>(1등 대비 로그 확률 임계값 — 원래 의미)과
+<code>--max-active</code>(활성 상태 개수 상한 — <code>top_k</code>)를 <strong>따로</strong> 받고,
+보통은 두 개를 같이 겁니다. 어려운 구간에서는 임계값만으로 후보가 터지기 때문인데,
+<a href="#s7">§7</a>에서 논문이 누적 확률 <code>p = 0.99</code> 말고 "최대 40자"라는 하드 리밋을
+하나 더 둔 것과 정확히 같은 동기입니다.
+</p>
+
+<div class="note">
+정리하면 <strong>빔은 "가능한 경우 전부"가 아니라 그 반대 — 일부러 좁게 비춘 범위</strong>입니다.
+<a href="#s4">§4</a>의 트레이스에서 매 프레임 10개 안팎을 만들어 3개만 남기던 그 <code>top_k</code> 한 줄이,
+지수를 선형으로 바꾸는 대가로 정답을 놓칠 위험을 감수하는 유일한 지점이고요.
+</div>
+
+<p class="fnback"><a href="#fnref-beam">↩ §5 빔 크기로 돌아가기</a></p>
 
 <footer>
 <p>
